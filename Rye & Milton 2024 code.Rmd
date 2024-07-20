@@ -1,0 +1,3800 @@
+---
+title: "IL Data"
+author: "Charlotte Rye"
+date: "`r Sys.Date()`"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## All Data
+
+First download all the required packages
+
+```{r Packages}
+#install.packages("tidyverse")
+#install.packages("rstatix")
+#install.packages("ggplot2")
+#install.packages("ggResidpanel")
+#install.packages("dplyr")
+#install.packages("pwr")
+#install.packages("ggpattern")
+#install.packages("broom")
+#install.packages("hrbrthemes")
+#install.packages("ggsignif")        
+#install.packages("Rmisc")   
+#install.packages("effectsize")  
+#install.packages("corrplot")
+#install.packages("DescTools")
+#install.packages("Hmisc")
+
+library(ggsignif) 
+library(tidyverse)
+library(rstatix)
+library(ggplot2)
+library(ggResidpanel)
+library(dplyr)
+library(broom)
+library(pwr)
+library(ggpattern)
+library(broom)
+library(hrbrthemes)
+library(Rmisc)
+library(readxl)
+library(ggsci)
+library(effectsize)
+library(ggpubr)
+library(corrplot)
+library(DescTools)
+library(Hmisc)
+
+```
+
+Read in the excel data for all behavioural and molecular data
+
+```{r Reading all of the data}
+AllData <- read_excel("~/Documents/Cambridge_University/Masters/Basic_and_Translational_Neuroscience/Research project/Western Blotting/WB Analysis/Rye & Milton 2024.xlsx", 
+                 sheet = "Sheet1", col_types = c("text", 
+                                                 "text", "text", "numeric", "numeric", 
+                                                 "numeric", "numeric", "numeric", 
+                                                 "numeric", "numeric", "numeric", 
+                                                 "numeric", "numeric", "numeric", 
+                                                 "numeric", "numeric"))
+View(AllData)
+
+AllData$Shock <- factor(AllData$Shock, levels=c('0-shock', '4-shock', '9-shock', "12-shock", "13-shock", "15-shock"))
+
+AllData$SEFL <- factor(AllData$SEFL, levels=c('Resilient', 'Susceptible'))
+```
+
+Brain Region Data
+
+```{r Subsetting out regions from AllData}
+
+ILData <- select(AllData, c("Rat","SEFL","Shock", "Average_Freezing_Extinction_Session","Average_Freezing_Last_3_mins_Extinction", "Recovery_Index","Total_Freezing_During_Test", "ILGluN2B", "ILGluA1", "ILGluA2"))
+
+View(ILData)
+
+PLData <- select(AllData, c("Rat","SEFL","Shock","Average_Freezing_Extinction_Session","Average_Freezing_Last_3_mins_Extinction", "Recovery_Index","Total_Freezing_During_Test", "PLGluN2B", "PLGluA1", "PLGluA2"))
+
+View(PLData)
+
+dHpcData <- select(AllData, c("Rat","SEFL","Shock", "Average_Freezing_Extinction_Session","Average_Freezing_Last_3_mins_Extinction", "Recovery_Index","Total_Freezing_During_Test", "dHpcGluN2B", "dHpcGluA1", "dHpcGluA2"))
+
+View(dHpcData)
+
+```
+
+IL Analysis
+
+```{r IL GluN2B}
+
+ILGluN2BData <- select(AllData, c("Rat","SEFL","Shock", "ILGluN2B"))
+
+#first we visualise the data
+
+ggplot(ILGluN2BData,
+       aes( x = Shock, y = ILGluN2B)) +
+  geom_boxplot()
+
+ggplot(ILGluN2BData,
+       aes( x = SEFL, y = ILGluN2B)) +
+  geom_boxplot()
+
+
+ggplot(ILGluN2BData,
+       aes( x = Shock, y = ILGluN2B, fill = SEFL)) +
+  geom_boxplot()
+
+#Linear model for GluN2B data
+
+lm_ILGluN2B <- lm(ILGluN2B ~ Shock + SEFL + Shock:SEFL,
+            data = ILGluN2BData)
+
+#check assumptions
+
+resid_panel(lm_ILGluN2B,
+            plots = c("resid", "qq", "ls", "cookd"),
+            smoother = TRUE)
+
+resid_ILGluN2B <- residuals(lm_ILGluN2B)
+
+shapiro.test(resid_ILGluN2B)
+
+levene_test(ILGluN2BData, ILGluN2B ~ Shock * SEFL)
+
+#data is not normal (shapiro test = significant)
+#but ANOVA is robust to these issues and we have homogeneity of variance
+
+anova(lm_ILGluN2B)
+options(es.use_symbols = TRUE) 
+#significant main effect of shock on GluN2B 
+eta_squared(lm_ILGluN2B, partial = FALSE)
+
+#we now do pairwise comparisons
+tukILGluN2B <- tukey_hsd(lm_ILGluN2B)
+print(tukILGluN2B, n=82)
+#significant difference between 0-shock and 13-shock group - This is the only significant difference
+
+ILsummaryGluN2B <- ILGluN2BData %>%
+  group_by(Shock, SEFL) %>%
+  get_summary_stats(type = "common")
+               
+
+  
+
+```
+
+```{r IL GluA1}
+
+#first we visualise the data
+
+ILGluA1Data <- select(AllData, c("Rat","SEFL","Shock", "ILGluA1"))
+
+ggplot(ILGluA1Data,
+       aes( x = Shock, y = ILGluA1)) +
+  geom_boxplot()
+
+ggplot(ILGluA1Data,
+       aes( x = SEFL, y = ILGluA1)) +
+  geom_boxplot()
+
+
+ggplot(ILGluA1Data,
+       aes( x = Shock, y = ILGluA1, fill = SEFL)) +
+  geom_boxplot()
+
+#Linear model for GluA1 data
+
+lm_ILGluA1 <- lm(ILGluA1 ~ Shock + SEFL + Shock:SEFL,
+                data = ILGluA1Data)
+
+#check assumptions
+
+resid_panel(lm_ILGluA1,
+            plots = c("resid", "qq", "ls", "cookd"),
+            smoother = TRUE)
+
+resid_ILGluA1 <- residuals(lm_ILGluA1)
+
+shapiro.test(resid_ILGluA1)
+levene_test(ILGluA1Data, ILGluA1 ~ Shock * SEFL)
+
+#data is not normal (shapiro test = significant)
+#but ANOVA is robust to these issues and we have homogeneity of variance
+
+anova(lm_ILGluA1)
+eta_squared(lm_ILGluA1, partial = FALSE)
+
+tukILA1 <- tukey_hsd(lm_ILGluA1)
+print(tukILA1, n=82)
+#significant effect of shock 
+#pairwise comparison revealed significant difference between 0-shock condition and all other shock levels
+
+ILsummaryGluA1 <- ILGluA1Data %>%
+  group_by(Shock, SEFL) %>%
+  get_summary_stats(type = "common")
+
+```
+
+```{r IL GluA2}
+
+ILGluA2Data <- select(AllData, c("Rat","SEFL","Shock", "ILGluA2"))
+#remove outlier
+ILGluA2Data <- ILGluA2Data[-c(55), ]
+
+#first we visualise the data
+ggplot(ILGluA2Data,
+       aes( x = Shock, y = ILGluA2)) +
+  geom_boxplot()
+
+ggplot(ILGluA2Data,
+       aes( x = SEFL, y = ILGluA2)) +
+  geom_boxplot()
+
+
+ggplot(ILGluA2Data,
+       aes( x = Shock, y = ILGluA2, fill = SEFL)) +
+  geom_boxplot()
+
+#Linear model for GluN2B data
+
+lm_ILGluA2 <- lm(ILGluA2 ~ Shock + SEFL + Shock:SEFL,
+               data = ILGluA2Data)
+
+#check assumptions
+
+resid_panel(lm_ILGluA2,
+            plots = c("resid", "qq", "ls", "cookd"),
+            smoother = TRUE)
+
+resid_ILGluA2 <- residuals(lm_ILGluA2)
+
+shapiro.test(resid_ILGluA2)
+levene_test(ILGluA2Data, ILGluA2 ~ Shock * SEFL)
+
+#data is not normal (shapiro test = significant)
+#but ANOVA is robust to these issues and we have homogeneity of variance
+
+anova(lm_ILGluA2)
+
+tukILA2 <- tukey_hsd(lm_ILGluA2)
+print(tukILA2, n=82)                                                                                                                                   
+
+#no significance
+
+ILsummaryGluA2 <- ILGluA2Data %>%
+  group_by(Shock, SEFL) %>%
+  get_summary_stats(type = "common")
+
+
+
+```
+
+```{r IL Bar Graph}
+
+ILN2B <- ggplot(ILsummaryGluN2B, aes(y = mean, x=Shock, pattern = SEFL, fill = Shock)) +
+  geom_bar_pattern(stat = "identity",  
+                   pattern_density = .2,
+                   pattern_spacing = .02,
+                   pattern_fill = 'white',
+                   pattern_color = "white",
+                   aes(pattern = SEFL), 
+                   position = position_dodge(preserve = "single"),
+                   width = 0.7,
+                   show.legend = TRUE)+
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  scale_pattern_manual(guide = "legend", values = c(Susceptible = "stripe", Resilient = "none")) + 
+  labs(x="", y="GluN2B Expression Relative to Control (%)", pattern = "SEFL", subtitle = "GluN2B") + 
+  guides(fill = guide_legend(override.aes = list(pattern = "none"))) +
+  scale_y_continuous(limits=c(0, 230), breaks = c(0,50,100,150,200), expand = c(0,0)) + 
+  theme(axis.text.x=element_text(angle = 45, vjust = 1, hjust =1, size = 15, face="bold"), axis.text.y=element_text(size = 15, face="bold"), axis.title =element_text(size=18,face="bold"), title=element_text(size = 18, face = "bold"),plot.subtitle =element_text(size = 18), strip.text = element_text(size = 15, face = "bold")) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) +
+  geom_signif(comparisons = list(c("0-shock","13-shock")),
+              map_signif_level = TRUE,
+              annotations = c("*"),
+              y_position = c(200),
+              color = c("black","black","black"),
+              size = .7, textsize = 10) +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se),
+                width= .5,                    
+                position=position_dodge(0.7),
+                color = "black") +
+  theme(legend.position="none") +
+  geom_point(data = ILGluN2BData, aes(x = Shock, y = ILGluN2B), position = position_jitterdodge(jitter.width = 0))
+
+ILN2B
+
+```
+
+```{r}
+ILA1 <- ggplot(ILsummaryGluA1, aes(y = mean, x=Shock, pattern = SEFL, fill = Shock)) +
+  geom_bar_pattern(stat = "identity",  
+                   pattern_density = .2,
+                   pattern_spacing = .02,
+                   pattern_fill = 'white',
+                   pattern_color = "white",
+                   aes(pattern = SEFL), 
+                   position = position_dodge(preserve = "single"),
+                   width = 0.7,
+                   show.legend = TRUE)+
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  scale_pattern_manual(guide = "legend", values = c(Susceptible = "stripe", Resilient = "none")) + 
+  labs(x="", y="GluA1 Expression Relative to Control (%)", pattern = "SEFL", subtitle = "GluA1") + 
+  guides(fill = guide_legend(override.aes = list(pattern = "none"))) +
+  scale_y_continuous(limits=c(0, 260),breaks = c(0,50,100,150,200,250), expand = c(0,0)) + 
+  theme(axis.text.x=element_text(angle = 45, vjust = 1, hjust =1, size = 15, face="bold"), axis.text.y=element_text(size = 15, face="bold"), axis.title =element_text(size=18,face="bold"), title=element_text(size = 18, face = "bold"),plot.subtitle =element_text(size = 18), strip.text = element_text(size = 15, face = "bold")) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) +
+  geom_signif(comparisons = list(c("0-shock","15-shock")),
+              map_signif_level = TRUE,
+              annotations = c("*"),
+              y_position = c(220),
+              color = c("black","black","black"),
+              size = .7, textsize = 10) +
+  geom_signif(comparisons = list(c("0-shock","13-shock")),
+              map_signif_level = TRUE,
+              annotations = c("**"),
+              y_position = c(195),
+              color = c("black","black","black"),
+              size = .7, textsize = 10) +
+  geom_signif(comparisons = list(c("0-shock","12-shock")),
+              map_signif_level = TRUE,
+              annotations = c("*"),
+              y_position = c(170),
+              color = c("black","black","black"),
+              size = .7, textsize = 10) +
+  geom_signif(comparisons = list(c("0-shock","9-shock")),
+              map_signif_level = TRUE,
+              annotations = c("**"),
+              y_position = c(145),
+              color = c("black","black","black"),
+              size = .7, textsize = 10) +
+  geom_signif(comparisons = list(c("0-shock","4-shock")),
+              map_signif_level = TRUE,
+              annotations = c("**"),
+              y_position = c(120),
+              color = c("black","black","black"),
+              size = .7, textsize = 10) +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se),
+                width= .5,                    
+                position=position_dodge(0.7),
+                color = "black") +
+  theme(legend.position="none") +
+  geom_point(data = ILGluA1Data, aes(x = Shock, y = ILGluA1), position = position_jitterdodge(jitter.width = 0))
+
+ILA1
+```
+
+```{r}
+ILA2 <- ggplot(ILsummaryGluA2, aes(y = mean, x=Shock, pattern = SEFL, fill = Shock)) +
+  geom_bar_pattern(stat = "identity",  
+                   pattern_density = .2,
+                   pattern_spacing = .02,
+                   pattern_fill = 'white',
+                   pattern_color = "white",
+                   aes(pattern = SEFL), 
+                   position = position_dodge(preserve = "single"),
+                   width = 0.7,
+                   show.legend = TRUE)+
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  scale_pattern_manual(guide = "legend", values = c(Susceptible = "stripe", Resilient = "none")) + 
+  labs(x="", y="GluA2 Expression Relative to Control (%)", pattern = "SEFL", subtitle = "GluA2") + 
+  guides(fill = guide_legend(override.aes = list(pattern = "none"))) +
+  scale_y_continuous(limits=c(0, 290),breaks = c(0,50,100,150,200,250), expand = c(0,0)) + 
+  theme(axis.text.x=element_text(angle = 45, vjust = 1, hjust =1, size = 15, face="bold"), axis.text.y=element_text(size = 15, face="bold"), axis.title =element_text(size=18,face="bold"), title=element_text(size = 18, face = "bold"),plot.subtitle =element_text(size = 18), strip.text = element_text(size = 15, face = "bold")) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se),
+                width= .5,                    
+                position=position_dodge(0.7),
+                color = "black") +
+  theme(legend.position = c(0.86, 0.72), legend.key.size = unit(1, 'cm')) + 
+ theme(legend.text=element_text(size=14, face = "bold")) +
+  geom_point(data = ILGluA2Data, aes(x = Shock, y = ILGluA2), position = position_jitterdodge(jitter.width = 0))
+
+
+ILA2
+```
+
+```{r}
+
+N2B_SEFL <- ggplot(ILGluN2BData,
+       aes( x = SEFL, y = ILGluN2B)) +
+  geom_boxplot() +
+    geom_jitter(color= c("#636363"), size=.7, alpha=.7) + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) +
+  labs(X = "", y="GluN2B Expression Relative to Control (%)") +
+  geom_signif(comparisons = list(c("Resilient","Susceptible")),
+              map_signif_level = TRUE,
+              annotations = c("NS"),
+              y_position = c(300),
+              color = c("black","black","black"),
+              size = 1, textsize = 5)  + 
+  theme(axis.text.x=element_text(size = 15, face="bold"), axis.text.y=element_text(size = 15, face="bold"), axis.title =element_text(size=18,face="bold"), title=element_text(size = 18, face = "bold"),plot.subtitle =element_text(size = 18), strip.text = element_text(size = 15, face = "bold")) +
+  scale_y_continuous(limits=c(0, 325)) +
+  theme(legend.position="none")
+
+N2B_SEFL
+
+A1_SEFL <- ggplot(ILGluA1Data,
+       aes( x = SEFL, y = ILGluA1)) +
+  geom_boxplot() +
+    geom_jitter(color= c("#636363"), size=.7, alpha=.7) + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) +
+  labs(X = "",y="GluA1 Expression Relative to Control (%)") +
+  geom_signif(comparisons = list(c("Resilient","Susceptible")),
+              map_signif_level = TRUE,
+              annotations = c("NS"),
+              y_position = c(300),
+              color = c("black","black","black"),
+              size = 1, textsize = 5) + 
+  theme(axis.text.x=element_text(size = 15, face="bold"), axis.text.y=element_text(size = 15, face="bold"), axis.title =element_text(size=18,face="bold"), title=element_text(size = 18, face = "bold"),plot.subtitle =element_text(size = 18), strip.text = element_text(size = 15, face = "bold")) +
+  scale_y_continuous(limits=c(0, 325)) +
+  theme(legend.position="none")
+A1_SEFL
+
+A2_SEFL <- ggplot(ILGluA2Data,
+       aes( x = SEFL, y = ILGluA2)) +
+  geom_boxplot() +
+    geom_jitter(color= c("#636363"), size=.7, alpha=.7) + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) +
+  labs(X = "",y="GluA2 Expression Relative to Control (%)") +
+  geom_signif(comparisons = list(c("Resilient","Susceptible")),
+              map_signif_level = TRUE,
+              annotations = c("NS"),
+              y_position = c(325),
+              color = c("black","black","black"),
+              size = 1, textsize = 5) + 
+  theme(axis.text.x=element_text(size = 15, face="bold"), axis.text.y=element_text(size = 15, face="bold"), axis.title =element_text(size=18,face="bold"), title=element_text(size = 18, face = "bold"),plot.subtitle =element_text(size = 18), strip.text = element_text(size = 15, face = "bold")) +
+  scale_y_continuous(limits=c(0, 350))
+A2_SEFL
+
+```
+
+```{r final IL figure}
+
+ILplot <- ggarrange(ILN2B, ILA1, ILA2, N2B_SEFL,A1_SEFL, A2_SEFL,
+                    labels = c("a", "", "", "b", "", ""),
+                    font.label = list(size = 26, face = "bold"),
+                    ncol = 3, nrow = 2) +
+  theme(plot.margin = margin(0.1,1.5,0.1,1.5, "cm")) 
+ILplot
+
+ggsave('ILplot', ILplot, width=23, height=18, units='in', device = "tiff", dpi = 600)
+```
+
+Correlations between subunit expression in the IL
+
+```{r IL GluA1:GluN2B}
+
+#first we work out the regression lines for the resilient and susceptible groups
+
+resilientIL <- select(ILData, c("Rat","SEFL","Shock", "Average_Freezing_Extinction_Session","Average_Freezing_Last_3_mins_Extinction", "Recovery_Index","Total_Freezing_During_Test","ILGluN2B", "ILGluA1", "ILGluA2"))
+resilientIL <- resilientIL[ which(resilientIL$SEFL=="Resilient"), ]
+
+susceptibleIL <- select(ILData, c("Rat","SEFL","Shock", "Average_Freezing_Extinction_Session","Average_Freezing_Last_3_mins_Extinction", "Recovery_Index","Total_Freezing_During_Test","ILGluN2B", "ILGluA1", "ILGluA2"))
+susceptibleIL <- susceptibleIL[ which(susceptibleIL$SEFL=="Susceptible"), ]
+
+
+ILResilient1 <- lm(ILGluN2B ~ ILGluA1, data = resilientIL, na.action=na.omit)
+ILResilient1
+#y = 0.6188x + 31.2460
+
+ILSusceptible1 <- lm(ILGluN2B ~ ILGluA1, data = susceptibleIL, na.action=na.omit)
+ILSusceptible1
+#y = 1.338x - 3.328
+
+ILA1_N2B <- ggplot(ILData,
+       aes(x = ILGluA1,
+           y = ILGluN2B, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = ILData$Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) +
+  geom_abline(intercept = 31.2460, slope = 0.6188, size = 1.2) +
+  geom_abline(intercept = -3.328, slope = 1.338, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 15, face = "bold"),axis.text.y=element_text(size = 15, face = "bold"), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA1 Expression Relative to Control (%)", y="GluN2B Expression Relative to Control (%)")
+ILA1_N2B
+```
+
+```{r IL GluA2:GluN2B}
+ILResilient2 <- lm(ILGluN2B ~ ILGluA2, data = resilientIL, na.action=na.omit)
+ILResilient2
+#y = 0.3608x + 41.0312
+
+ILSusceptible2 <- lm(ILGluN2B ~ ILGluA2, data = susceptibleIL, na.action=na.omit)
+ILSusceptible2
+
+#y = -0.3047x + 45.9953
+
+ILA2_N2B<- ggplot(ILData,
+       aes(x = ILGluA2,
+           y = ILGluN2B, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = ILData$Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) +
+  geom_abline(intercept = 41.1943, slope = 0.3597, size = 1.2) +
+  geom_abline(intercept = 45.9953, slope = -0.3047, linetype = "dashed",size = 1.2) +
+  geom_segment(aes(x=230, xend=250,y=25,yend=25), size =1.3, color = "black") +
+  geom_segment(aes(x=230, xend=250,y=15,yend=15), size = 1.3,color = "black", linetype = "dashed") + 
+  annotate(geom="text", x=275, y=25, label="Resilient",
+              color="black", size = 6, fontface = "bold") +
+  annotate(geom="text", x=283, y=15, label="Susceptible",
+              color="black", size = 6, fontface = "bold") +
+  theme(axis.text.x=element_text(size = 15, face = "bold"),axis.text.y=element_text(size = 15, face = "bold"), axis.title =element_text(size=15,face="bold")) +
+  theme(legend.position="none") +
+  scale_x_continuous(limits=c(0, 320), breaks = c(0,100,200,300), expand = c(0,0)) +
+  labs(x="GluA2 Expression Relative to Control (%)", y="GluN2B Expression Relative to Control (%)") 
+
+ILA2_N2B
+
+```
+
+```{r IL GluA2:GluA1}
+ILResilient3 <- lm(ILGluA1 ~ ILGluA2, data = resilientIL, na.action=na.omit)
+ILResilient3
+#y = 0.3216x + 30.6209
+
+ILSusceptible3 <- lm(ILGluA1 ~ ILGluA2, data = susceptibleIL, na.action=na.omit)
+ILSusceptible3
+
+#y = -0.2378x + 35.9742
+
+ILA2_A1<- ggplot(ILData,
+       aes(x = ILGluA2,
+           y = ILGluA1, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = ILData$Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) +
+  geom_abline(intercept = 31.3282, slope = 0.2702, size = 1.2) +
+  geom_abline(intercept = 35.9742, slope = -0.2378, linetype = "dashed", size = 1.2) +
+  theme(legend.position = c(0.13, 0.80), legend.key.size = unit(0.8, 'cm')) +
+  theme(axis.text.x=element_text(size = 15, face = "bold"),axis.text.y=element_text(size = 15, face = "bold"), axis.title =element_text(size=15,face="bold")) + 
+ theme(legend.text=element_text(size=12, face = "bold")) +
+  scale_x_continuous(limits=c(0, 320), breaks = c(0,100,200,300), expand = c(0,0)) +
+  labs(x="GluA2 Expression Relative to Control (%)", y="GluA1 Expression Relative to Control (%)")
+ILA2_A1
+  
+```
+
+```{r Subunit Correlation Plot}
+ILsubunits <- ggarrange(ILA2_A1, ILA1_N2B, ILA2_N2B,
+                    labels = c("a", "b", "c"),
+                    font.label = list(size = 24, face = "bold"),
+                    ncol = 3, nrow = 1) +
+  theme(plot.margin = margin(1,1,1,1, "cm")) 
+ILsubunits
+
+ggsave('ILsubunits', ILsubunits, width=25, height=9, units='in', device = "tiff", dpi = 600)
+```
+
+Comparing the regressions
+
+```{r IL A1-A2 comparison}
+
+ILA1_A2<- ILData %>% 
+    group_by(SEFL) %>%
+    cor_test(ILGluA2, ILGluA1, method="pearson")
+
+#resilient - r=0.45, p <.01
+#susceptible = r=-0.26, p=0.31
+
+```
+
+```{r IL A1-N2B comparison}
+ILA1_N2B<- ILData %>% 
+    group_by(SEFL) %>%
+    cor_test(ILGluN2B, ILGluA1, method="pearson")
+
+#resilient - r=0.57, p <.0001
+#susceptible = r=0.57, p<.05
+
+```
+
+```{r IL A2-N2B comparison}
+
+ILA2_N2B <- ILData %>% 
+    group_by(SEFL) %>%
+    cor_test(ILGluN2B, ILGluA2, method="pearson")
+
+#resilient - r=0.46, p<0.01
+#susceptible = r=-0.15, p=.59
+```
+
+Fisher's Z-Scores
+
+```{r IL Fisher Transform}
+ILResilientA1_A2 <- FisherZ(0.45)
+ILSusceptibleA1_A2 <- FisherZ(-0.26)
+
+ILResilientA1_N2B <- FisherZ(0.57)
+ILSusceptibleA1_N2B <- FisherZ(0.57)
+
+ILResilientA2_N2B <- FisherZ(0.46)
+ILSusceptibleA2_N2B <- FisherZ(-0.15)
+```
+
+```{r IL Zdiff A1_A2}
+#n resilient = 43
+#n susceptible = 17
+#one outlier removed
+
+
+N1 <- 1/(44-3)
+N2 <- 1/(18-3)
+
+N <- N1 + N2
+
+Z1 <- (ILResilientA1_A2 -ILSusceptibleA1_A2)
+
+ILZdiffA1_A2 <- Z1/sqrt(N)
+
+#=2.488
+#greater than z-crit = significant
+
+```
+
+```{r IL Zdiff A1_N2B}
+#1 lost in each group for GluN2B due to over-exposure
+
+N1b <- 1/(43-3)
+N2b <- 1/(17-3)
+
+Nb <- N1b + N2b
+
+Z2 <- (ILResilientA1_N2B -ILSusceptibleA1_N2B)
+
+ILZdiffA1_N2B <- Z2/sqrt(Nb)
+
+#=0
+
+```
+
+```{r IL Zdiff A2_N2B}
+
+#one outlier removed
+Z3 <- (ILResilientA2_N2B -ILSusceptibleA2_N2B)
+
+ILZdiffA2_N2B <- Z3/sqrt(Nb)
+
+#=2.33
+#greater than z crit = significant
+```
+
+Behavioural Correlations with IL Data
+
+```{r IL Expression and Freezing During Extinction Training}
+
+#first we work out the correlations
+
+
+ILResGluN2B <- lm(Average_Freezing_Extinction_Session ~ ILGluN2B, data = resilientIL)
+ILResGluN2B
+
+ILSusGluN2B <- lm(Average_Freezing_Extinction_Session ~ ILGluN2B, data = susceptibleIL)
+ILSusGluN2B
+
+
+ILResGluA1 <- lm(Average_Freezing_Extinction_Session ~ ILGluA1, data = resilientIL)
+ILResGluA1
+
+ILSusGluA1 <- lm(Average_Freezing_Extinction_Session ~ ILGluA1, data = susceptibleIL)
+ILSusGluA1
+
+ILResGluA2 <- lm(Average_Freezing_Extinction_Session~ ILGluA2, data = resilientIL)
+ILResGluA2
+
+ILSusGluA2 <- lm(Average_Freezing_Extinction_Session ~ ILGluA2, data = susceptibleIL)
+ILSusGluA2
+
+
+ILFF_A1 <- ggplot(ILData,
+       aes(x = ILGluA1,
+           y = Average_Freezing_Extinction_Session, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = 9.53, slope = -0.043, size = 1.2) +
+  geom_abline(intercept = 36.19, slope = -0.14, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12, face = "bold"),axis.text.y=element_text(size = 12, face = "bold"), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA1 Expression Relative to Control (%)", y="Mean Freezing During Extinction Session (%)") +
+  scale_x_continuous(limits=c(0, 270), breaks = c(0,50,100,150,200,250), expand = c(0,0))
+
+ILFF_N2B <- ggplot(ILData,
+       aes(x = ILGluN2B,
+           y = Average_Freezing_Extinction_Session, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = 9.25, slope = -0.035, size = 1.2) +
+  geom_abline(intercept = 32.34, slope = -0.028, linetype = "dashed", size = 1.2)  +
+ theme(axis.text.x=element_text(size = 12, face = "bold"),axis.text.y=element_text(size = 12, face = "bold"), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluN2B Expression Relative to Control (%)", y="Mean Freezing During Extinction Session (%)") + 
+  theme(legend.position = c(0.85, 0.78), legend.key.size = unit(1, 'cm'), legend.text = element_text(size=14, face = "bold")) +
+  scale_x_continuous(limits=c(0, 220), breaks = c(0,50,100,150,200), expand = c(0,0)) +
+  geom_segment(aes(x=10, xend=35,y=50,yend=50),size =1.3, color = "black") +
+  geom_segment(aes(x=10, xend=35,y=48,yend=48), size =1.3, color = "black", linetype = "dashed") +
+  annotate(geom="text", x=60, y=50, label="Resilient",
+              color="black",size = 6, fontface = "bold") +
+  annotate(geom="text", x=65, y=48, label="Susceptible",
+              color="black", size = 6,fontface = "bold") 
+
+ILFF_A2 <- ggplot(ILData,
+       aes(x = ILGluA2,
+           y = Average_Freezing_Extinction_Session, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = 8.53, slope = -0.024, size = 1.2) +
+  geom_abline(intercept = 29.33, slope = 0.085, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12, face = "bold"),axis.text.y=element_text(size = 12, face = "bold"), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA2 Expression Relative to Control (%)", y="Mean Freezing During Extinction Session (%)") +
+  scale_x_continuous(limits=c(0, 320), breaks = c(0,50,100,150,200,250,300), expand = c(0,0))
+  
+
+ILFF_A2
+ILFF_A1
+ILFF_N2B
+
+
+ILFF_A1cor<- ILData %>% 
+    group_by(SEFL) %>%
+    cor_test(Average_Freezing_Extinction_Session, ILGluA1, method="pearson")
+
+#resilient - r=-0.27, p=0.07
+#susceptible = r=-0.35, p=0.16
+
+ILFF_A2cor<- ILData %>% 
+    group_by(SEFL) %>%
+    cor_test(Average_Freezing_Extinction_Session, ILGluA2, method="pearson")
+
+#resilient - r=-0.22, p=0.16
+#susceptible = r=0.23, p=0.37
+
+ILFF_N2Bcor<- ILData %>% 
+    group_by(SEFL) %>%
+    cor_test(Average_Freezing_Extinction_Session, ILGluN2B, method="pearson")
+
+#resilient - r=-0.26, p=0.10
+#susceptible = r=-0.17, p=0.53
+
+ILResilientFF_A1 <- FisherZ(-0.27)
+ILSusceptibleFF_A1 <- FisherZ(-0.35)
+
+ILResilientFF_A2 <- FisherZ(-0.22)
+ILSusceptibleFF_A2 <- FisherZ(0.23)
+
+ILResilientFF_N2B <- FisherZ(-0.26)
+ILSusceptibleFF_N2B <- FisherZ(-0.17)
+
+
+#z diff for A1
+
+#n resilient = 44
+#n susceptible = 18
+
+N1 <- 1/(44-3)
+N2 <- 1/(18-3)
+
+N <- N1 + N2
+
+Z1 <- (ILResilientFF_A1 -ILSusceptibleFF_A1)
+
+ILZdiffFF_A1 <- Z1/sqrt(N)
+ILZdiffFF_A1
+
+# 0.29 not significant
+
+#Z diff for A2
+
+#N resilient = 43
+
+N1a <- 1/(43-3)
+
+Na <- N1a + N2
+
+Z2 <- (ILResilientFF_A2 -ILSusceptibleFF_A2)
+
+ILZdiffFF_A2 <- Z2/sqrt(Na)
+ILZdiffFF_A2
+
+#-1.51 not significant
+
+#Z diff for N2B
+
+#One lost from each group due to over exposure
+
+N3 <- 1/(43-3)
+N4 <- 1/(17-3)
+
+N5 <- N3 + N4
+
+Z3 <- (ILResilientFF_N2B -ILSusceptibleFF_N2B)
+
+ILZdiffFF_N2B <- Z3/sqrt(N5)
+ILZdiffFF_N2B
+
+#-0.30 not significant
+
+
+
+```
+
+```{r IL Expression and Freezing During Final 3 Mins Extinction Training}
+
+ILRes3GluN2B <- lm(Average_Freezing_Last_3_mins_Extinction ~ ILGluN2B, data = resilientIL)
+ILRes3GluN2B
+#y = -0.020x + 4.89
+
+
+ILSus3GluN2B <- lm(Average_Freezing_Last_3_mins_Extinction ~ ILGluN2B, data = susceptibleIL)
+ILSus3GluN2B
+
+#y = -0.12x + 17.84
+
+
+ILRes3GluA1 <- lm(Average_Freezing_Last_3_mins_Extinction ~ ILGluA1, data = resilientIL)
+ILRes3GluA1
+
+
+ILSus3GluA1 <- lm(Average_Freezing_Last_3_mins_Extinction ~ ILGluA1, data = susceptibleIL)
+ILSus3GluA1
+
+ILRes3GluA2 <- lm(Average_Freezing_Last_3_mins_Extinction ~ ILGluA2, data = resilientIL)
+ILRes3GluA2
+
+ILSus3GluA2 <- lm(Average_Freezing_Last_3_mins_Extinction ~ ILGluA2, data = susceptibleIL)
+ILSus3GluA2
+
+ILE3_A1 <- ggplot(ILData,
+       aes(x = ILGluA1,
+           y = Average_Freezing_Last_3_mins_Extinction, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = 4.95, slope = -0.022, size = 1.2) +
+  geom_abline(intercept = 17.69, slope = -0.15, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA1 Expression Relative to Control (%)", y="Mean Freezing During Final 3 mins Extinction (%)") +
+  scale_x_continuous(limits=c(0, 270), breaks = c(0,50,100,150,200,250), expand = c(0,0))
+
+ILE3_N2B <- ggplot(ILData,
+       aes(x = ILGluN2B,
+           y = Average_Freezing_Last_3_mins_Extinction, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = 4.89, slope = -0.020, size = 1.2) +
+  geom_abline(intercept = 17.84, slope = -0.12, linetype = "dashed", size = 1.2)  +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluN2B Expression Relative to Control (%)", y="Mean Freezing During Final 3 mins Extinction (%)") +
+  scale_x_continuous(limits=c(0, 220), breaks = c(0,50,100,150,200), expand = c(0,0))
+
+ILE3_A2 <- ggplot(ILData,
+       aes(x = ILGluA2,
+           y = Average_Freezing_Last_3_mins_Extinction, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = 4.75, slope = -0.018, size = 1.2) +
+  geom_abline(intercept = 26.21, slope = 0.38, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA2 Expression Relative to Control (%)", y="Mean Freezing During Final 3 mins Extinction (%)") +
+  scale_x_continuous(limits=c(0, 320), breaks = c(0,50,100,150,200,250,300), expand = c(0,0)) +
+  theme(legend.position="none")
+
+
+ILE3_A2
+ILE3_A1
+ILE3_N2B
+
+
+
+ILTF_A1<- ILData %>% 
+    group_by(SEFL) %>%
+    cor_test(Average_Freezing_Last_3_mins_Extinction, ILGluA1, method="pearson")
+
+#resilient - r=-0.14, p=0.38
+#susceptible = r=-0.16, p=0.54
+
+ILTF_A2<- ILData %>% 
+    group_by(SEFL) %>%
+    cor_test(Average_Freezing_Last_3_mins_Extinction, ILGluA2, method="pearson")
+
+#resilient - r=-0.16, p=0.30
+#susceptible = r=-0.45, p=0.07
+
+ILTF_N2B<- ILData %>% 
+    group_by(SEFL) %>%
+    cor_test(Average_Freezing_Last_3_mins_Extinction, ILGluN2B, method="pearson")
+
+#resilient - r=-0.14, p=0.39
+#susceptible = r=-0.29, p=0.27
+
+ILResilientTF_A1 <- FisherZ(-0.14)
+ILSusceptibleTF_A1 <- FisherZ(-0.16)
+
+ILResilientTF_A2 <- FisherZ(-0.16)
+ILSusceptibleTF_A2 <- FisherZ(0.45)
+
+ILResilientTF_N2B <- FisherZ(-0.14)
+ILSusceptibleTF_N2B <- FisherZ(-0.29)
+
+#A1
+
+#n resilient = 44
+#n susceptible = 18
+
+N1 <- 1/(44-3)
+N2 <- 1/(18-3)
+
+N <- N1 + N2
+
+Z3_1 <- (ILResilientTF_A1 -ILSusceptibleTF_A1)
+
+ILZdiffTF_A1 <- Z3_1/sqrt(N)
+ILZdiffTF_A1
+
+# 0.067 not significant
+
+#A2
+
+N1a <- 1/(43-3)
+N2 <- 1/(18-3)
+
+Na <- N1a + N2
+
+Z3_2 <- (ILResilientTF_A2 -ILSusceptibleTF_A2)
+
+ILZdiffTF_A2 <- Z3_2/sqrt(Na)
+ILZdiffTF_A2
+
+#-2.13 significant at p < 0.05
+
+#N2B
+
+#One lost from each group due to over exposure
+
+N3 <- 1/(43-3)
+N4 <- 1/(17-3)
+
+N5 <- N3 + N4
+
+Z3_3 <- (ILResilientTF_N2B -ILSusceptibleTF_N2B)
+
+ILZdiffTF_N2B <- Z3_3/sqrt(N5)
+ILZdiffTF_N2B
+
+# 0.51 not significant
+
+```
+
+```{r IL Expression and Test Freezing}
+
+ILResTGluN2B <- lm(Total_Freezing_During_Test ~ ILGluN2B, data = resilientIL)
+ILResTGluN2B
+#y = -0.01405x + 2.68
+
+
+ILSusTGluN2B <- lm(Total_Freezing_During_Test~ ILGluN2B, data = susceptibleIL)
+ILSusTGluN2B
+#y = -0.06 + 21.45
+
+
+ILResTGluA1 <- lm(Total_Freezing_During_Test ~ ILGluA1, data = resilientIL)
+ILResTGluA1
+#y = -0.017 + 2.84
+
+ILSusTGluA1 <- lm(Total_Freezing_During_Test ~ ILGluA1, data = susceptibleIL)
+ILSusTGluA1
+#y = -0.31 + 29.91
+
+ILResTGluA2 <- lm(Total_Freezing_During_Test ~ ILGluA2, data = resilientIL)
+ILResTGluA2
+#y = -0.011 + 2.46
+
+ILSusTGluA2 <- lm(Total_Freezing_During_Test ~ ILGluA2, data = susceptibleIL)
+ILSusTGluA2
+
+#y = 0.28 + 11.83
+
+ILTest_A1 <- ggplot(ILData,
+       aes(x = ILGluA1,
+           y = Total_Freezing_During_Test, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = 2.84, slope = -0.017, size = 1.2) +
+  geom_abline(intercept = 29.91, slope = -0.31, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA1 Expression Relative to Control (%)", y="Mean Freezing During Test (%)") +
+  scale_x_continuous(limits=c(0, 270), breaks = c(0,50,100,150,200,250), expand = c(0,0))
+
+ILTest_N2B <- ggplot(ILData,
+       aes(x = ILGluN2B,
+           y = Total_Freezing_During_Test, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = 2.68, slope = -0.014, size = 1.2) +
+  geom_abline(intercept = 21.45, slope = -0.06, linetype = "dashed", size = 1.2)  +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluN2B Expression Relative to Control (%)", y="Mean Freezing During Test (%)") +
+  scale_x_continuous(limits=c(0, 220), breaks = c(0,50,100,150,200), expand = c(0,0))
+
+ILTest_A2 <- ggplot(ILData,
+       aes(x = ILGluA2,
+           y = Total_Freezing_During_Test, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = 2.46, slope = -0.011, size = 1.2) +
+  geom_abline(intercept = 11.83, slope = 0.28, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA2 Expression Relative to Control (%)", y="Mean Freezing During Test (%)") +
+  scale_x_continuous(limits=c(0, 320), breaks = c(0,50,100,150,200,250,300), expand = c(0,0))
+
+
+ILTest_A2
+ILTest_A1
+ILTest_N2B
+
+
+
+ILT_A1<- ILData %>% 
+    group_by(SEFL) %>%
+    cor_test(Total_Freezing_During_Test, ILGluA1, method="pearson")
+
+#resilient - r=-0.21, p=0.18
+#susceptible = r=-0.38, p=0.14
+
+ILT_A2<- ILData %>% 
+    group_by(SEFL) %>%
+    cor_test(Total_Freezing_During_Test, ILGluA2, method="pearson")
+
+#resilient - r=-0.14, p=0.23
+#susceptible = r=-0.17, p=0.14
+
+ILT_N2B<- ILData %>% 
+    group_by(SEFL) %>%
+    cor_test(Total_Freezing_During_Test, ILGluN2B, method="pearson")
+
+#resilient - r=-0.20, p=0.20
+#susceptible = r=-0.19, p=0.49
+
+#no significance so we don't check for differences
+```
+
+```{r IL Expression and Recovery Index}
+
+ILResRGluN2B <- lm(Recovery_Index ~ ILGluN2B, data = resilientIL)
+ILResRGluN2B
+#y = 0.03x - 4.43
+
+ILSusRGluN2B <- lm(Recovery_Index ~ ILGluN2B, data = susceptibleIL)
+ILSusRGluN2B
+#y = -0.003 + 7.18
+
+ILResRGluA1 <- lm(Recovery_Index ~ ILGluA1, data = resilientIL)
+ILResRGluA1
+#y = 0.03x - 4.30
+
+ILSusRGluA1 <- lm(Recovery_Index ~ ILGluA1, data = susceptibleIL)
+ILSusRGluA1
+#y = 0.08x + 6.61
+
+ILResRGluA2 <- lm(Recovery_Index ~ ILGluA2, data = resilientIL)
+ILResRGluA2
+#y = 0.02x - 4.02
+
+ILSusRGluA2 <- lm(Recovery_Index ~ ILGluA2, data = susceptibleIL)
+ILSusRGluA2
+#y = 0.54x - 9.1
+
+
+ILRec_A1 <- ggplot(ILData,
+       aes(x = ILGluA1,
+           y = Recovery_Index, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = -4.30, slope = 0.03, size = 1.2) +
+  geom_abline(intercept = 6.61, slope = 0.08, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA1 Expression Relative to Control (%)", y="Recovery Index (%)") +
+  scale_x_continuous(limits=c(0, 270), breaks = c(0,50,100,150,200,250), expand = c(0,0))
+
+ILRec_N2B <- ggplot(ILData,
+       aes(x = ILGluN2B,
+           y = Recovery_Index, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = -4.43, slope = 0.03, size = 1.2) +
+  geom_abline(intercept = 7.18, slope = -0.003, linetype = "dashed", size = 1.2)  +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluN2B Expression Relative to Control (%)", y="Recovery Index (%)") +
+  scale_x_continuous(limits=c(0, 220), breaks = c(0,50,100,150,200), expand = c(0,0))
+
+ILRec_A2 <- ggplot(ILData,
+       aes(x = ILGluA2,
+           y = Recovery_Index, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = -4.02, slope = 0.02, size = 1.2) +
+  geom_abline(intercept = -9.1, slope = 0.54, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA2 Expression Relative to Control (%)", y="Recovery Index (%)") +
+  scale_x_continuous(limits=c(0, 320), breaks = c(0,50,100,150,200,250,300), expand = c(0,0)) +
+  theme(legend.position="none") 
+
+
+ILRec_A2
+ILRec_A1
+ILRec_N2B
+
+
+
+ILR_A1<- ILData %>% 
+    group_by(SEFL) %>%
+    cor_test(Recovery_Index, ILGluA1, method="pearson")
+
+#resilient - r=0.16, p=0.31
+#susceptible = r=0.06, p=0.82
+
+ILR_A2<- ILData %>% 
+    group_by(SEFL) %>%
+    cor_test(Recovery_Index, ILGluA2, method="pearson")
+
+#resilient - r=0.15, p=0.36
+#susceptible = r=0.45, p=0.07
+
+ILR_N2B<- ILData %>% 
+    group_by(SEFL) %>%
+    cor_test(Recovery_Index, ILGluN2B, method="pearson")
+
+#resilient - r=0.15, p=0.34
+#susceptible = r=-0.005, p=0.99
+
+#no significance so we don't check for differences
+
+```
+
+```{r IL Behavioural Graph}
+
+ILcorGraph <- ggarrange(ILFF_N2B, ILFF_A1, ILFF_A2, ILE3_N2B, ILE3_A1, ILE3_A2, ILTest_N2B, ILTest_A1, ILTest_A2, ILRec_N2B, ILRec_A1, ILRec_A2,
+                    labels = c("a", "", "","b", "", "","c", "", "","d", "", ""),
+                    font.label = list(size = 24, face = "bold"),
+                    ncol = 3, nrow = 4) +
+  theme(plot.margin = margin(0.1,1.5,0.1,1.5, "cm")) 
+ILcorGraph
+
+ggsave('ILcorGraph', ILcorGraph, width=25, height=36, units='in', device = "tiff", dpi = 300)
+
+```
+
+PL Analysis
+
+```{r PL GluN2B}
+
+PLGluN2BData <- select(AllData, c("Rat","SEFL","Shock", "PLGluN2B"))
+#remove outliers
+PLGluN2BData <- PLGluN2BData[-c(15,55), ]
+
+#first we visualise the data
+
+ggplot(PLGluN2BData,
+       aes( x = Shock, y = PLGluN2B)) +
+  geom_boxplot()
+
+ggplot(PLGluN2BData,
+       aes( x = SEFL, y = PLGluN2B)) +
+  geom_boxplot()
+
+
+ggplot(PLGluN2BData,
+       aes( x = Shock, y = PLGluN2B, fill = SEFL)) +
+  geom_boxplot()
+
+#Linear model for GluN2B data
+
+lm_PLGluN2B <- lm(PLGluN2B ~ Shock + SEFL + Shock:SEFL,
+            data = PLGluN2BData)
+
+#check assumptions
+
+resid_panel(lm_PLGluN2B,
+            plots = c("resid", "qq", "ls", "cookd"),
+            smoother = TRUE)
+
+resid_PLGluN2B <- residuals(lm_PLGluN2B)
+
+shapiro.test(resid_PLGluN2B)
+
+levene_test(PLGluN2BData, PLGluN2B ~ Shock * SEFL)
+
+
+#data is not normal (shapiro test = significant)
+#but ANOVA is robust to these issues and we have homogeneity of variance
+
+anova(lm_PLGluN2B)
+#significant main effect of SEFL on GluN2B
+
+#effect sizes
+options(es.use_symbols = TRUE) 
+
+eta_squared(lm_PLGluN2B, partial = FALSE) 
+#F(1,60) = 13.25, p<.001, eta2 = 0.14
+
+#we now do pairwise comparisons
+tukPLGluN2B <- tukey_hsd(lm_PLGluN2B)
+print(tukPLGluN2B, n=82)
+
+#significant difference between 13 shock resilient and susceptible p < 0.01
+
+PLsummaryGluN2B <- PLGluN2BData %>%
+  group_by(Shock, SEFL) %>%
+  get_summary_stats(type = "common")
+
+```
+
+```{r PL GluA1}
+
+#first we visualise the data
+
+PLGluA1Data <- select(AllData, c("Rat","SEFL","Shock", "PLGluA1"))
+#remove otulier
+PLGluA1Data <- PLGluA1Data[-c(38), ]
+
+ggplot(PLGluA1Data,
+       aes( x = Shock, y = PLGluA1)) +
+  geom_boxplot()
+
+ggplot(PLGluA1Data,
+       aes( x = SEFL, y = PLGluA1)) +
+  geom_boxplot()
+
+
+ggplot(PLGluA1Data,
+       aes( x = Shock, y = PLGluA1, fill = SEFL)) +
+  geom_boxplot()
+
+#Linear model for GluA1 data
+
+lm_PLGluA1 <- lm(PLGluA1 ~ Shock + SEFL + Shock:SEFL,
+                data = PLGluA1Data)
+
+#check assumptions
+
+resid_panel(lm_PLGluA1,
+            plots = c("resid", "qq", "ls", "cookd"),
+            smoother = TRUE)
+
+resid_PLGluA1 <- residuals(lm_PLGluA1)
+
+shapiro.test(resid_PLGluA1)
+levene_test(PLGluA1Data, PLGluA1 ~ Shock * SEFL)
+
+#data is normaland we have homogeneity of variance
+
+anova(lm_PLGluA1)
+eta_squared(lm_PLGluA1, partial = FALSE)
+#Shock F(5,61) = 4.00, p<0.01, eta2 = 0.15
+#SEFL F(1,61) = 28.29, p<0.0001, eta2 = 0.22
+#Shock:SEFL F(5,61) = 4.35, p<0.01, eta2 = 0.17
+
+tukPLA1 <- tukey_hsd(lm_PLGluA1)
+print(tukPLA1, n=82)
+#Shock
+#12 and 13 p.adj<0.05
+#13 and 15 p.adj<0.001
+
+#Shock:SEFL
+#0-shock resilient - 13-shock susceptible p.adj<0.001
+#4-shock resilient - 13-shock susceptible p.adj<0.001
+#9-shock resilient - 13-shock susceptible p.adj<0.001
+#12-shock resilient - 13-shock susceptible p.adj<0.01
+
+#13-shock resilient - 15-shock susceptible p.adj<0.0001
+
+#SEFL
+#13 shock resilient versus susceptible
+
+PLsummaryGluA1 <- PLGluA1Data %>%
+  group_by(Shock, SEFL) %>%
+  get_summary_stats(type = "common")
+
+```
+
+```{r PL GluA2}
+
+PLGluA2Data <- select(AllData, c("Rat","SEFL","Shock", "PLGluA2"))
+
+#first we visualise the data
+ggplot(PLGluA2Data,
+       aes( x = Shock, y = PLGluA2)) +
+  geom_boxplot()
+
+ggplot(PLGluA2Data,
+       aes( x = SEFL, y = PLGluA2)) +
+  geom_boxplot()
+
+
+ggplot(PLGluA2Data,
+       aes( x = Shock, y = PLGluA2, fill = SEFL)) +
+  geom_boxplot()
+
+#Linear model for GluN2B data
+
+lm_PLGluA2 <- lm(PLGluA2 ~ Shock + SEFL + Shock:SEFL,
+               data = PLGluA2Data)
+
+#check assumptions
+
+resid_panel(lm_PLGluA2,
+            plots = c("resid", "qq", "ls", "cookd"),
+            smoother = TRUE)
+
+resid_PLGluA2 <- residuals(lm_PLGluA2)
+
+shapiro.test(resid_PLGluA2)
+levene_test(PLGluA2Data, PLGluA2 ~ Shock * SEFL)
+
+#data is not normal (shapiro test = significant)
+#but ANOVA is robust to these issues and we have homogeneity of variance
+
+anova(lm_PLGluA2)
+eta_squared(lm_PLGluA2, partial = FALSE)
+#SEFL F(1,62) = 6.55, p<0.05, eta2 = 0.07
+
+tukPLA2 <- tukey_hsd(lm_PLGluA2)
+print(tukPLA2, n=82)                                                                           #13 shock resilient versus susceptible p.adj<0.05                                              
+
+PLsummaryGluA2 <- PLGluA2Data %>%
+  group_by(Shock, SEFL) %>%
+  get_summary_stats(type = "common")
+
+```
+
+```{r PL Bar Graph}
+
+PLN2B <- ggplot(PLsummaryGluN2B, aes(y = mean, x=Shock, pattern = SEFL, fill = Shock)) +
+  geom_bar_pattern(stat = "identity",  
+                   pattern_density = .2,
+                   pattern_spacing = .02,
+                   pattern_fill = 'white',
+                   pattern_color = "white",
+                   aes(pattern = SEFL), 
+                   position = position_dodge(preserve = "single"),
+                   width = 0.7,
+                   show.legend = TRUE)+
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  scale_pattern_manual(guide = "legend", values = c(Susceptible = "stripe", Resilient = "none")) + 
+  theme(legend.key.size = unit(0.8, 'cm')) +  
+  labs(x="", y="GluN2B Expression Relative to Control (%)", pattern = "SEFL", subtitle = "GluN2B") + 
+  guides(fill = guide_legend(override.aes = list(pattern = "none"))) +
+  scale_y_continuous(limits=c(0, 800), breaks = c(0,100,200,300,400,500,600,700,800), expand = c(0,0)) + 
+  theme(axis.text.x=element_text(angle = 45, vjust = 1, hjust =1, size = 15, face="bold"), axis.text.y=element_text(size = 15, face="bold"), axis.title =element_text(size=18,face="bold"), title=element_text(size = 18, face = "bold"),plot.subtitle =element_text(size = 18), strip.text = element_text(size = 15, face = "bold")) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) +
+  geom_signif(y_position = c(500), xmin = c(4.82), xmax = c(5.17), annotation = c("**"),
+              tip_length = 0.02, color = "black", size = .7, textsize = 10) +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se),
+                width= .5,                    
+                position=position_dodge(0.7),
+                color = "black") +
+  geom_point(data = PLGluN2BData, aes(x = Shock, y = PLGluN2B), position = position_jitterdodge(jitter.width = 0)) +
+  theme(legend.position = c(0.15, 0.75), legend.key.size = unit(1, 'cm')) + 
+ theme(legend.text=element_text(size=14, face = "bold"))
+
+PLN2B
+
+```
+
+```{r}
+PLA1 <- ggplot(PLsummaryGluA1, aes(y = mean, x=Shock, pattern = SEFL, fill = Shock)) +
+  geom_bar_pattern(stat = "identity",  
+                   pattern_density = .2,
+                   pattern_spacing = .02,
+                   pattern_fill = 'white',
+                   pattern_color = "white",
+                   aes(pattern = SEFL), 
+                   position = position_dodge(preserve = "single"),
+                   width = 0.7,
+                   show.legend = TRUE)+
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  scale_pattern_manual(guide = "legend", values = c(Susceptible = "stripe", Resilient = "none")) + 
+  labs(x="", y="GluA1 Expression Relative to Control (%)", pattern = "SEFL", subtitle = "GluA1") + 
+  guides(fill = guide_legend(override.aes = list(pattern = "none"))) +
+  scale_y_continuous(limits=c(0, 460),breaks = c(0,50,100,150,200,250,300,350,400,450), expand = c(0,0)) + 
+  theme(axis.text.x=element_text(angle = 45, vjust = 1, hjust =1, size = 15, face="bold"), axis.text.y=element_text(size = 15, face="bold"), axis.title =element_text(size=18,face="bold"), title=element_text(size = 18, face = "bold"),plot.subtitle =element_text(size = 18), strip.text = element_text(size = 15, face = "bold")) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank())  +
+  geom_signif(comparisons = list(c("12-shock","13-shock")),
+              map_signif_level = TRUE,
+              annotations = c("*"),
+              y_position = c(405),
+              color = c("black","black","black"),
+              size = .7, textsize = 10) +
+  geom_signif(comparisons = list(c("13-shock","15-shock")),
+              map_signif_level = TRUE,
+              annotations = c("***"),
+              y_position = c(385),
+              color = c("black","black","black"),
+              size = .7, textsize = 10) +
+  geom_signif(y_position = c(350), xmin = c(4.82), xmax = c(5.17), annotation = c("****"),
+              tip_length = 0.02, color = "black", size = .7, textsize = 10) +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se),
+                width= .5,                    
+                position=position_dodge(0.7),
+                color = "black") +
+  theme(legend.position="none") +
+  geom_point(data = PLGluA1Data, aes(x = Shock, y = PLGluA1), position = position_jitterdodge(jitter.width = 0))
+
+
+PLA1
+```
+
+```{r}
+PLA2 <- ggplot(PLsummaryGluA2, aes(y = mean, x=Shock, pattern = SEFL, fill = Shock)) +
+  geom_bar_pattern(stat = "identity",  
+                   pattern_density = .2,
+                   pattern_spacing = .02,
+                   pattern_fill = 'white',
+                   pattern_color = "white",
+                   aes(pattern = SEFL), 
+                   position = position_dodge(preserve = "single"),
+                   width = 0.7,
+                   show.legend = TRUE)+
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  scale_pattern_manual(guide = "legend", values = c(Susceptible = "stripe", Resilient = "none")) + 
+  labs(x="", y="GluA2 Expression Relative to Control (%)", pattern = "SEFL", subtitle = "GluA2") + 
+  guides(fill = guide_legend(override.aes = list(pattern = "none"))) +
+  scale_y_continuous(limits=c(0, 510),breaks = c(0,50,100,150,200,250,300,350,400,450,500), expand = c(0,0)) + 
+  theme(axis.text.x=element_text(angle = 45, vjust = 1, hjust =1, size = 15, face="bold"), axis.text.y=element_text(size = 15, face="bold"), axis.title =element_text(size=18,face="bold"), title=element_text(size = 18, face = "bold"),plot.subtitle =element_text(size = 18), strip.text = element_text(size = 15, face = "bold")) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se),
+                width= .5,                    
+                position=position_dodge(0.7),
+                color = "black") +
+  geom_point(data = PLGluA2Data, aes(x = Shock, y = PLGluA2), position = position_jitterdodge(jitter.width = 0)) +
+  geom_signif(y_position = c(380), xmin = c(4.82), xmax = c(5.17), annotation = c("*"),
+              tip_length = 0.02, color = "black", size = .7, textsize = 10)  +
+  theme(legend.position="none")
+
+
+PLA2
+```
+
+```{r PL Boxplot}
+
+PLN2B_SEFL <- ggplot(PLGluN2BData,
+       aes( x = SEFL, y = PLGluN2B)) +
+  geom_boxplot() +
+    geom_jitter(color= c("#636363"), size=.7, alpha=.7) + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) +
+  labs(X = "", y="GluN2B Expression Relative to Control (%)") +
+  geom_signif(comparisons = list(c("Resilient","Susceptible")),
+              map_signif_level = TRUE,
+              annotations = c("***"),
+              y_position = c(600),
+              color = c("black","black","black"),
+              size = 1, textsize = 10)  + 
+  theme(axis.text.x=element_text(size = 15, face="bold"), axis.text.y=element_text(size = 15, face="bold"), axis.title =element_text(size=18,face="bold"), title=element_text(size = 18, face = "bold"),plot.subtitle =element_text(size = 18), strip.text = element_text(size = 15, face = "bold")) +
+  scale_y_continuous(limits=c(0, 800)) +
+  theme(legend.position="none")
+
+PLN2B_SEFL
+
+PLA1_SEFL <- ggplot(PLGluA1Data,
+       aes( x = SEFL, y = PLGluA1)) +
+  geom_boxplot() +
+    geom_jitter(color= c("#636363"), size=.7, alpha=.7) + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) +
+  labs(X = "",y="GluA1 Expression Relative to Control (%)") +
+  geom_signif(comparisons = list(c("Resilient","Susceptible")),
+              map_signif_level = TRUE,
+              annotations = c("****"),
+              y_position = c(300),
+              color = c("black","black","black"),
+              size = 1, textsize = 10) + 
+  theme(axis.text.x=element_text(size = 15, face="bold"), axis.text.y=element_text(size = 15, face="bold"), axis.title =element_text(size=18,face="bold"), title=element_text(size = 18, face = "bold"),plot.subtitle =element_text(size = 18), strip.text = element_text(size = 15, face = "bold")) +
+  scale_y_continuous(limits=c(0, 400)) +
+  theme(legend.position="none")
+PLA1_SEFL
+
+PLA2_SEFL <- ggplot(PLGluA2Data,
+       aes( x = SEFL, y = PLGluA2)) +
+  geom_boxplot() +
+    geom_jitter(color= c("#636363"), size=.7, alpha=.7) + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) +
+  labs(X = "",y="GluA2 Expression Relative to Control (%)") +
+  geom_signif(comparisons = list(c("Resilient","Susceptible")),
+              map_signif_level = TRUE,
+              annotations = c("*"),
+              y_position = c(400),
+              color = c("black","black","black"),
+              size = 1, textsize = 10) + 
+  theme(axis.text.x=element_text(size = 15, face="bold"), axis.text.y=element_text(size = 15, face="bold"), axis.title =element_text(size=18,face="bold"), title=element_text(size = 18, face = "bold"),plot.subtitle =element_text(size = 18), strip.text = element_text(size = 15, face = "bold")) +
+  scale_y_continuous(limits=c(0, 500))
+PLA2_SEFL
+
+```
+
+```{r final PL figure}
+
+PLplot <- ggarrange(PLN2B, PLA1, PLA2, PLN2B_SEFL,PLA1_SEFL, PLA2_SEFL,
+                    labels = c("a", "", "", "b", "", ""),
+                    font.label = list(size = 26, face = "bold"),
+                    ncol = 3, nrow = 2) +
+  theme(plot.margin = margin(0.1,1.5,0.1,1.5, "cm")) 
+PLplot
+
+ggsave('PLplot', PLplot, width=23, height=18, units='in', device = "tiff", dpi = 600)
+```
+
+```{r PL GluA1 SEFL:Shock Interaction}
+
+interaction.plot(x.factor = PLGluA1Data$Shock,
+                 trace.factor = PLGluA1Data$SEFL,
+                 response = PLGluA1Data$PLGluA1,
+                 fun = mean,
+                 col = c("red","blue"),
+                 lty = 1,
+                 lwd = 3,
+                 ylab = "Relative Expression of GluA1 (%)", xlab = "Shock", trace.label = "SEFL") 
+```
+
+Correlations between subunit expression in the PL
+
+```{r PL GluA1:GluN2B}
+
+#first we work out the regression lines for the resilient and susceptible groups
+
+resilientPL <- select(PLData, c("Rat","SEFL","Shock", "Average_Freezing_Extinction_Session","Average_Freezing_Last_3_mins_Extinction", "Recovery_Index","Total_Freezing_During_Test","PLGluN2B", "PLGluA1", "PLGluA2"))
+resilientPL <- resilientPL[ which(resilientPL$SEFL=="Resilient"), ]
+
+susceptiblePL <- select(PLData, c("Rat","SEFL","Shock", "Average_Freezing_Extinction_Session","Average_Freezing_Last_3_mins_Extinction", "Recovery_Index","Total_Freezing_During_Test","PLGluN2B", "PLGluA1", "PLGluA2"))
+susceptiblePL <- susceptiblePL[ which(susceptiblePL$SEFL=="Susceptible"), ]
+
+
+PLResilient1 <- lm(PLGluN2B ~ PLGluA1, data = resilientPL, na.action=na.omit)
+PLResilient1
+#y = 0.96X + 17.32
+
+PLSusceptible1 <- lm(PLGluN2B ~ PLGluA1, data = susceptiblePL, na.action=na.omit)
+PLSusceptible1
+#y = 0.9945x + 3.5257
+
+
+PLA1_N2B <- ggplot(PLData,
+       aes(x = PLGluA1,
+           y = PLGluN2B, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = PLData$Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) +
+  geom_abline(intercept = 17.32, slope = 0.96, size = 1.2) +
+  geom_abline(intercept = 3.53, slope = 0.99, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 15, face = "bold"),axis.text.y=element_text(size = 15, face = "bold"), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA1 Expression Relative to Control (%)", y="GluN2B Expression Relative to Control (%)")
+PLA1_N2B
+```
+
+```{r PL GluA2:GluN2B}
+
+PLResilient2 <- lm(PLGluN2B ~ PLGluA2, data = resilientPL)
+PLResilient2
+#y = 0.49X + 77.50
+
+PLSusceptible2 <- lm(PLGluN2B ~ PLGluA2, data = susceptiblePL)
+PLSusceptible2
+
+#y = 0.69X + 4.77
+
+PLA2_N2B<- ggplot(PLData,
+       aes(x = PLGluA2,
+           y = PLGluN2B, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = PLData$Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) +
+  geom_abline(intercept = 77.5, slope = 0.49, size = 1.2) +
+  geom_abline(intercept = 4.77, slope = 0.69, linetype = "dashed",size = 1.2) +
+  geom_segment(aes(x=0, xend=40,y=770,yend=770), size = 1.3, color = "black") +
+  geom_segment(aes(x=0, xend=40,y=720,yend=720), size = 1.3, color = "black", linetype = "dashed") + 
+  annotate(geom="text", x=80, y=770, label="Resilient",
+              color="black", size = 6, fontface = "bold") +
+  annotate(geom="text", x=92, y=720, label="Susceptible",
+              color="black", size =6, fontface = "bold") +
+  theme(axis.text.x=element_text(size = 15, face = "bold"),axis.text.y=element_text(size = 15, face = "bold"), axis.title =element_text(size=15,face="bold")) +
+  theme(legend.position="none") +
+  labs(x="GluA2 Expression Relative to Control (%)", y="GluN2B Expression Relative to Control (%)")
+PLA2_N2B
+
+```
+
+```{r PL GluA2:GluA1}
+PLResilient3 <- lm(PLGluA1 ~ PLGluA2, data = resilientPL, na.action=na.omit)
+PLResilient3
+#y = 0.3216x + 30.6209
+
+PLSusceptible3 <- lm(PLGluA1 ~ PLGluA2, data = susceptiblePL, na.action=na.omit)
+PLSusceptible3
+
+#y = -0.2378x + 35.9742
+
+PLA2_A1<- ggplot(PLData,
+       aes(x = PLGluA2,
+           y = PLGluA1, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = PLData$Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) +
+  geom_abline(intercept = 50.11, slope = 0.63, size = 1.2) +
+  geom_abline(intercept = 1.46, slope = 0.68, linetype = "dashed", size = 1.2) +
+theme(legend.position = c(0.87, 0.27), legend.key.size = unit(1, 'cm')) +
+  theme(axis.text.x=element_text(size = 15, face = "bold"),axis.text.y=element_text(size = 15, face = "bold"), axis.title =element_text(size=15,face="bold")) + 
+ theme(legend.text=element_text(size=12, face = "bold")) +
+  labs(x="GluA2 Expression Relative to Control (%)", y="GluA1 Expression Relative to Control (%)")
+  PLA2_A1
+  
+```
+
+```{r PL Subunit Correlation Plot}
+PLsubunits <- ggarrange(PLA2_A1, PLA1_N2B, PLA2_N2B,
+                    labels = c("a", "b", "c"),
+                    font.label = list(size = 24, face = "bold"),
+                    ncol = 3, nrow = 1) +
+  theme(plot.margin = margin(1,1,1,1, "cm")) 
+PLsubunits
+
+ggsave('PLsubunits', PLsubunits, width=25, height=9, units='in', device = "tiff", dpi = 600)
+```
+
+Comparing the regressions
+
+```{r PL A1:A2 comparison}
+
+PLA1_A2<- PLData %>% 
+    group_by(SEFL) %>%
+    cor_test(PLGluA2, PLGluA1, method="pearson")
+
+#resilient - r=0.81, p <.0001
+#susceptible = r=0.99, p<.0001
+
+```
+
+```{r PL A1:N2B comparison}
+PLA1_N2B<- PLData %>% 
+    group_by(SEFL) %>%
+    cor_test(PLGluN2B, PLGluA1, method="pearson")
+
+#resilient - r=0.65, p <.0001
+#susceptible = r=0.97, p<.0001
+
+```
+
+```{r PL A2:N2B comparison}
+
+PLA2_N2B <- PLData %>% 
+    group_by(SEFL) %>%
+    cor_test(PLGluN2B, PLGluA2, method="pearson")
+
+#resilient - r=0.42, p<0.0001
+#susceptible = r=0.97, p<0.001
+```
+
+Fisher's Z-Scores
+
+```{r PL Fisher Transform}
+
+PLResilientA1_A2 <- FisherZ(0.81)
+PLSusceptibleA1_A2 <- FisherZ(0.99)
+
+PLResilientA1_N2B <- FisherZ(0.65)
+PLSusceptibleA1_N2B <- FisherZ(0.97)
+
+PLResilientA2_N2B <- FisherZ(0.42)
+PLSusceptibleA2_N2B <- FisherZ(0.97)
+```
+
+```{r PL Zdiff A1_A2}
+#n resilient = 50
+#n susceptible = 21
+
+
+N1 <- 1/(50-3)
+N2 <- 1/(21-3)
+
+N <- N1 + N2
+
+Z1 <- (PLResilientA1_A2 -PLSusceptibleA1_A2)
+
+PLZdiffA1_A2 <- Z1/sqrt(N)
+PLZdiffA1_A2
+#=-5.48
+#significant
+
+```
+
+```{r PL Zdiff A1_N2B}
+#n resilient = 49
+#n susceptible = 21
+
+
+N1b <- 1/(49-3)
+N2b <- 1/(21-3)
+
+Nb <- N1b + N2b
+
+Z2 <- (PLResilientA1_N2B -PLSusceptibleA1_N2B)
+
+PLZdiffA1_N2B <- Z2/sqrt(Nb)
+PLZdiffA1_N2B
+
+#=-4.74
+#significant
+
+```
+
+```{r PL Zdiff A2_N2B}
+
+#n resilient = 51
+#n susceptible = 22
+
+
+N1c <- 1/(51-3)
+N2c <- 1/(22-3)
+
+Nc <- N1c + N2c
+Z3 <- (PLResilientA2_N2B -PLSusceptibleA2_N2B)
+
+PLZdiffA2_N2B <- Z3/sqrt(Nc)
+PLZdiffA2_N2B
+
+#=-6.07
+#greater than z crit = significant
+```
+
+Behavioural Correlations with PL Data
+
+```{r PL Expression and Freezing During Extinction Training}
+
+#first we work out the correlations
+
+
+PLResGluN2B <- lm(Average_Freezing_Extinction_Session ~ PLGluN2B, data = resilientPL)
+PLResGluN2B
+
+PLSusGluN2B <- lm(Average_Freezing_Extinction_Session ~ PLGluN2B, data = susceptiblePL)
+PLSusGluN2B
+
+
+PLResGluA1 <- lm(Average_Freezing_Extinction_Session ~ PLGluA1, data = resilientPL)
+PLResGluA1
+
+PLSusGluA1 <- lm(Average_Freezing_Extinction_Session ~ PLGluA1, data = susceptiblePL)
+PLSusGluA1
+
+PLResGluA2 <- lm(Average_Freezing_Extinction_Session~ PLGluA2, data = resilientPL)
+PLResGluA2
+
+PLSusGluA2 <- lm(Average_Freezing_Extinction_Session ~ PLGluA2, data = susceptiblePL)
+PLSusGluA2
+
+
+PLFF_A1 <- ggplot(PLData,
+       aes(x = PLGluA1,
+           y = Average_Freezing_Extinction_Session, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = 2.6, slope = 0.042, size = 1.2) +
+  geom_abline(intercept = 33.2, slope = -0.05, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12, face = "bold"),axis.text.y=element_text(size = 12, face = "bold"), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA1 Expression Relative to Control (%)", y="Mean Freezing During Extinction Session (%)") +
+  scale_x_continuous(limits=c(0, 420), breaks = c(0,100,200,300,400), expand = c(0,0))
+
+PLFF_N2B <- ggplot(PLData,
+       aes(x = PLGluN2B,
+           y = Average_Freezing_Extinction_Session, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = 4.58, slope = 0.02, size = 1.2) +
+  geom_abline(intercept = 33.2, slope = -0.042, linetype = "dashed", size = 1.2) +
+  theme(axis.text.x=element_text(size = 12, face = "bold"),axis.text.y=element_text(size = 12, face = "bold"), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluN2B Expression Relative to Control (%)", y="Mean Freezing During Extinction Session (%)") +
+  geom_segment(aes(x=50, xend=120,y=50,yend=50), size = 1.3, color = "black") +
+  geom_segment(aes(x=50, xend=120,y=47,yend=47), size = 1.3, color = "black", linetype = "dashed") +
+  annotate(geom="text", x=180, y=50, label="Resilient",
+              color="black", size = 6, fontface = "bold") +
+  annotate(geom="text", x=195, y=47, label="Susceptible",
+              color="black", size = 6, fontface = "bold") +
+  scale_x_continuous(limits=c(0, 820), breaks = c(0,200,400,600,800), expand = c(0,0)) + 
+  theme(legend.position = c(0.85, 0.78), legend.key.size = unit(1, 'cm'), legend.text = element_text(size=14, face = "bold")) 
+
+PLFF_A2 <- ggplot(PLData,
+       aes(x = PLGluA2,
+           y = Average_Freezing_Extinction_Session, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = 4.54, slope = 0.03, size = 1.2) +
+  geom_abline(intercept = 33.14, slope = -0.034, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12, face = "bold"),axis.text.y=element_text(size = 12, face = "bold"), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA2 Expression Relative to Control (%)", y="Mean Freezing During Extinction Session (%)") + 
+  theme(legend.position="none") +
+  scale_x_continuous(limits=c(0, 520), breaks = c(0,100,200,300,400,500), expand = c(0,0))
+
+
+PLFF_A2
+PLFF_A1
+PLFF_N2B
+
+PLFF_A1cor<- PLData %>% 
+    group_by(SEFL) %>%
+    cor_test(Average_Freezing_Extinction_Session, PLGluA1, method="pearson")
+
+#resilient - r=0.50, p<0.0001
+#susceptible = r=-0.29, p=0.19
+
+PLFF_A2cor<- PLData %>% 
+    group_by(SEFL) %>%
+    cor_test(Average_Freezing_Extinction_Session, PLGluA2, method="pearson")
+
+#resilient - r=0.44, p<0.01
+#susceptible = r=-0.29, p=0.20
+
+PLFF_N2Bcor<- PLData %>% 
+    group_by(SEFL) %>%
+    cor_test(Average_Freezing_Extinction_Session, PLGluN2B, method="pearson")
+
+#resilient - r=0.33, p<0.05
+#susceptible = r=-0.25, p=0.26
+
+PLResilientFF_A1 <- FisherZ(0.50)
+PLSusceptibleFF_A1 <- FisherZ(-0.29)
+
+PLResilientFF_A2 <- FisherZ(0.44)
+PLSusceptibleFF_A2 <- FisherZ(-0.29)
+
+PLResilientFF_N2B <- FisherZ(0.33)
+PLSusceptibleFF_N2B <- FisherZ(-0.25)
+
+#Zdiff for A1
+#n resilient = 51
+#n susceptible = 20
+
+N1 <- 1/(51-3)
+N2 <- 1/(20-3)
+
+N <- N1 + N2
+
+Z1 <- (PLResilientFF_A1 -PLSusceptibleFF_A1)
+
+PLZdiffFF_A1 <- Z1/sqrt(N)
+PLZdiffFF_A1
+
+# 3.00 significant
+
+# 0.29 not significant
+
+#Z diff for A2
+
+#n resilient = 53
+#n susceptible = 21
+
+N1b <- 1/(53-3)
+N2b <- 1/(21-3)
+
+Nb <- N1b + N2b
+
+Z2 <- (PLResilientFF_A2 -PLSusceptibleFF_A2)
+
+PLZdiffFF_A2 <- Z2/sqrt(Nb)
+PLZdiffFF_A2
+
+#2.80 significant
+
+#Z diff for N2B
+
+#n resilient = 52
+#n susceptible = 21
+
+N1c <- 1/(52-3)
+N2c <- 1/(21-3)
+
+Nc <- N1c + N2c
+
+Z3 <- (PLResilientFF_N2B -PLSusceptibleFF_N2B)
+
+PLZdiffFF_N2B <- Z3/sqrt(Nc)
+PLZdiffFF_N2B
+
+#2.17 significant
+
+
+
+```
+
+```{r PL Expression and Freezing During Final 3 Mins Extinction Training}
+
+PLRes3GluN2B <- lm(Average_Freezing_Last_3_mins_Extinction ~ PLGluN2B, data = resilientPL)
+PLRes3GluN2B
+
+PLSus3GluN2B <- lm(Average_Freezing_Last_3_mins_Extinction ~ PLGluN2B, data = susceptiblePL)
+PLSus3GluN2B
+
+PLRes3GluA1 <- lm(Average_Freezing_Last_3_mins_Extinction ~ PLGluA1, data = resilientPL)
+PLRes3GluA1
+
+PLSus3GluA1 <- lm(Average_Freezing_Last_3_mins_Extinction ~ PLGluA1, data = susceptiblePL)
+PLSus3GluA1
+
+PLRes3GluA2 <- lm(Average_Freezing_Last_3_mins_Extinction ~ PLGluA2, data = resilientPL)
+PLRes3GluA2
+
+PLSus3GluA2 <- lm(Average_Freezing_Last_3_mins_Extinction ~ PLGluA2, data = susceptiblePL)
+PLSus3GluA2
+
+PLE3_A1 <- ggplot(PLData,
+       aes(x = PLGluA1,
+           y = Average_Freezing_Last_3_mins_Extinction, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = 4.95, slope = -0.022, size = 1.2) +
+  geom_abline(intercept = 17.69, slope = -0.15, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA1 Expression Relative to Control (%)", y="Mean Freezing During Final 3 mins Extinction (%)") +
+  scale_x_continuous(limits=c(0, 420), breaks = c(0,100,200,300,400), expand = c(0,0))
+
+PLE3_N2B <- ggplot(PLData,
+       aes(x = PLGluN2B,
+           y = Average_Freezing_Last_3_mins_Extinction, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = 4.89, slope = -0.020, size = 1.2) +
+  geom_abline(intercept = 17.84, slope = -0.12, linetype = "dashed", size = 1.2)  +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluN2B Expression Relative to Control (%)", y="Mean Freezing During Final 3 mins Extinction (%)") +
+  scale_x_continuous(limits=c(0, 820), breaks = c(0,200,400,600,800), expand = c(0,0))
+
+PLE3_A2 <- ggplot(PLData,
+       aes(x = PLGluA2,
+           y = Average_Freezing_Last_3_mins_Extinction, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = 4.75, slope = -0.018, size = 1.2) +
+  geom_abline(intercept = 26.21, slope = 0.38, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA2 Expression Relative to Control (%)", y="Mean Freezing During Final 3 mins Extinction (%)") +
+  scale_x_continuous(limits=c(0, 520), breaks = c(0,100,200,300,400,500), expand = c(0,0)) +
+  theme(legend.position="none")
+
+
+PLE3_A2
+PLE3_A1
+PLE3_N2B
+
+
+PLTF_A1<- PLData %>% 
+    group_by(SEFL) %>%
+    cor_test(Average_Freezing_Last_3_mins_Extinction, PLGluA1, method="pearson")
+
+#resilient - r=0.34, p<0.05
+#susceptible = r=-0.25, p=0.28
+
+PLTF_A2<- PLData %>% 
+    group_by(SEFL) %>%
+    cor_test(Average_Freezing_Last_3_mins_Extinction, PLGluA2, method="pearson")
+
+#resilient - r=0.21, p=0.13
+#susceptible = r=-0.06, p=0.79
+
+PLTF_N2B<- PLData %>% 
+    group_by(SEFL) %>%
+    cor_test(Average_Freezing_Last_3_mins_Extinction, PLGluN2B, method="pearson")
+
+#resilient - r=0.53, p<0.001
+#susceptible = r=-0.25, p=0.27
+
+PLResilientTF_A1 <- FisherZ(0.34)
+PLSusceptibleTF_A1 <- FisherZ(-0.25)
+
+PLResilientTF_A2 <- FisherZ(0.21)
+PLSusceptibleTF_A2 <- FisherZ(-0.06)
+
+PLResilientTF_N2B <- FisherZ(0.53)
+PLSusceptibleTF_N2B <- FisherZ(-0.25)
+
+#A1
+
+#n resilient = 51
+#n susceptible = 20
+
+N1 <- 1/(51-3)
+N2 <- 1/(20-3)
+
+N <- N1 + N2
+
+Z3_1 <- (PLResilientTF_A1 -PLSusceptibleTF_A1)
+
+PLZdiffTF_A1 <- Z3_1/sqrt(N)
+PLZdiffTF_A1
+
+# 2.16 = significant
+
+#A2
+
+#n resilient = 53
+#n susceptible = 21
+
+N1b <- 1/(53-3)
+N2b <- 1/(21-3)
+
+Nb <- N1b + N2b
+
+Z3_2 <- (PLResilientTF_A2 -PLSusceptibleTF_A2)
+
+PLZdiffTF_A2 <- Z3_2/sqrt(Nb)
+PLZdiffTF_A2
+
+#0.99 not significant
+
+#N2B
+
+#n resilient = 52
+#n susceptible = 21
+
+N1c <- 1/(52-3)
+N2c <- 1/(21-3)
+
+Nc <- N1c + N2c
+Z3_3 <- (PLResilientTF_N2B -PLSusceptibleTF_N2B)
+
+PLZdiffTF_N2B <- Z3_3/sqrt(Nc)
+PLZdiffTF_N2B
+
+# 3.07 significant
+
+
+```
+
+```{r PL Expression and Test Freezing}
+
+PLResTGluN2B <- lm(Total_Freezing_During_Test ~ PLGluN2B, data = resilientPL)
+PLResTGluN2B
+#y = 0.02 - 0.12
+
+PLSusTGluN2B <- lm(Total_Freezing_During_Test ~ PLGluN2B, data = susceptiblePL)
+PLSusTGluN2B
+#y = -0.05x + 21.52
+
+
+PLResTGluA1 <- lm(Total_Freezing_During_Test ~ PLGluA1, data = resilientPL)
+PLResTGluA1
+#y = 0.018x + 0.005
+
+PLSusTGluA1 <- lm(Total_Freezing_During_Test ~ PLGluA1, data = susceptiblePL)
+PLSusTGluA1
+#y = -0.063 + 21.63
+
+PLResTGluA2 <- lm(Total_Freezing_During_Test ~ PLGluA2, data = resilientPL)
+PLResTGluA2
+#y = 0.009x + 1.14
+
+PLSusTGluA2 <- lm(Total_Freezing_During_Test ~ PLGluA2, data = susceptiblePL)
+PLSusTGluA2
+#y = -0.04x + 21.53
+
+PLTest_A1 <- ggplot(PLData,
+       aes(x = PLGluA1,
+           y = Total_Freezing_During_Test, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = 0.005, slope = 0.018, size = 1.2) +
+  geom_abline(intercept = 21.63, slope = -0.063, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12, face = "bold"), axis.text.y=element_text(size = 12, face = "bold"),axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA1 Expression Relative to Control (%)", y="Mean Freezing During Test (%)") +
+  theme(legend.position = "none")  +
+  scale_x_continuous(limits=c(0, 420), breaks = c(0,100,200,300,400), expand = c(0,0))
+
+PLTest_N2B <- ggplot(PLData,
+       aes(x = PLGluN2B,
+           y = Total_Freezing_During_Test, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = -0.12, slope = 0.02, size = 1.2) +
+  geom_abline(intercept = 21.52, slope = -0.05, linetype = "dashed", size = 1.2)  +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12, face = "bold"), axis.text.y=element_text(size = 12, face = "bold"),axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluN2B Expression Relative to Control (%)", y="Mean Freezing During Test (%)") +
+  scale_x_continuous(limits=c(0, 820), breaks = c(0,100,200,300,400,500,600,700,800), expand = c(0,0))
+
+
+PLTest_A2 <- ggplot(PLData,
+       aes(x = PLGluA2,
+           y = Total_Freezing_During_Test, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank())  + 
+  geom_abline(intercept = 1.14, slope = 0.009, size = 1.2) +
+  geom_abline(intercept = 21.53, slope = -0.04, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA2 Expression Relative to Control (%)", y="Mean Freezing During Test (%)") +
+  scale_x_continuous(limits=c(0, 520), breaks = c(0,100,200,300,400,500), expand = c(0,0))
+
+
+PLTest_A2
+PLTest_A1
+PLTest_N2B
+
+PLT_A1<- PLData %>% 
+    group_by(SEFL) %>%
+    cor_test(Total_Freezing_During_Test, PLGluA1, method="pearson")
+
+#resilient - r=0.41, p<0.01
+#susceptible = r=-0.21, p=0.34
+
+PLT_A2<- PLData %>% 
+    group_by(SEFL) %>%
+    cor_test(Total_Freezing_During_Test, PLGluA2, method="pearson")
+
+#resilient - r=0.28, p<0.05
+#susceptible = r=-0.21, p=0.35
+
+PLT_N2B<- PLData %>% 
+    group_by(SEFL) %>%
+    cor_test(Total_Freezing_During_Test, PLGluN2B, method="pearson")
+
+#resilient - r=0.56, p<0.05
+#susceptible = r=-0.17, p=0.35
+
+
+
+PLResilientT_A1 <- FisherZ(0.41)
+PLSusceptibleT_A1 <- FisherZ(-0.21)
+
+PLResilientT_A2 <- FisherZ(0.28)
+PLSusceptibleT_A2 <- FisherZ(-0.21)
+
+PLResilientT_N2B <- FisherZ(0.56)
+PLSusceptibleT_N2B <- FisherZ(-0.17)
+
+#A1
+
+#n resilient = 51
+#n susceptible = 20
+
+N1 <- 1/(51-3)
+N2 <- 1/(20-3)
+
+N <- N1 + N2
+
+ZT_1 <- (PLResilientT_A1 -PLSusceptibleT_A1)
+
+PLZdiffT_A1 <- ZT_1/sqrt(N)
+PLZdiffT_A1
+
+# 2.30 = significant
+
+#A2
+
+#n resilient = 53
+#n susceptible = 21
+
+N1b <- 1/(53-3)
+N2b <- 1/(21-3)
+
+Nb <- N1b + N2b
+
+ZT_2 <- (PLResilientT_A2 -PLSusceptibleT_A2)
+
+PLZdiffT_A2 <- ZT_2/sqrt(Nb)
+PLZdiffT_A2
+
+#1.82 not significant
+
+#N2B
+
+#n resilient = 52
+#n susceptible = 21
+
+N1c <- 1/(52-3)
+N2c <- 1/(21-3)
+
+Nc <- N1c + N2c
+ZT_3 <- (PLResilientT_N2B -PLSusceptibleT_N2B)
+
+PLZdiffT_N2B <- ZT_3/sqrt(Nc)
+PLZdiffT_N2B
+
+# 2.92 significant
+
+```
+
+```{r PL Expression and Recovery Index}
+
+PLResRGluN2B <- lm(Recovery_Index ~ PLGluN2B, data = resilientPL)
+PLResRGluN2B
+#y = -0.0053x - 2.17
+
+PLSusRGluN2B <- lm(Recovery_Index ~ PLGluN2B, data = susceptiblePL)
+PLSusRGluN2B
+#y = 0.008x + 11.62
+
+PLResRGluA1 <- lm(Recovery_Index ~ PLGluA1, data = resilientPL)
+PLResRGluA1
+#y = -0.002x - 2.45
+
+PLSusRGluA1 <- lm(Recovery_Index ~ PLGluA1, data = susceptiblePL)
+PLSusRGluA1
+#y = 0.03x + 11.30
+
+PLResRGluA2 <- lm(Recovery_Index ~ PLGluA2, data = resilientPL)
+PLResRGluA2
+#y = 0.006x - 3.28
+
+PLSusRGluA2 <- lm(Recovery_Index ~ PLGluA2, data = susceptiblePL)
+PLSusRGluA2
+#y = 0.023x + 11.17
+
+PLRec_A2 <- ggplot(PLData,
+       aes(x = PLGluA2,
+           y = Recovery_Index, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = -3.28, slope = 0.006, size = 1.2) +
+  geom_abline(intercept = 11.17, slope = -0.023, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12, face = "bold"), axis.text.y=element_text(size = 12, face = "bold"),axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA2 Expression Relative to Control (%)", y="Recovery Index (%)") +
+  scale_x_continuous(limits=c(0, 520), breaks = c(0,100,200,300,400,500), expand = c(0,0))
+
+PLRec_N2B <- ggplot(PLData,
+       aes(x = PLGluN2B,
+           y = Recovery_Index, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = -2.17, slope = -0.0053, size = 1.2) +
+  geom_abline(intercept = 11.62, slope = 0.008, linetype = "dashed", size = 1.2)  +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12, face = "bold"), axis.text.y=element_text(size = 12, face = "bold"),axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluN2B Expression Relative to Control (%)", y="Recovery Index (%)") +
+  scale_x_continuous(limits=c(0, 820), breaks = c(0,100,200,300,400,500,600,700,800), expand = c(0,0))
+
+PLRec_A1 <- ggplot(PLData,
+       aes(x = PLGluA1,
+           y = Recovery_Index, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = -2.45, slope = -0.002, size = 1.2) +
+  geom_abline(intercept = 11.3, slope = 0.03, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12, face = "bold"), axis.text.y=element_text(size = 12, face = "bold"),axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA1 Expression Relative to Control (%)", y="Recovery Index (%)") +
+  theme(legend.position = "none") +
+  scale_x_continuous(limits=c(0, 420), breaks = c(0,100,200,300,400), expand = c(0,0))
+
+
+PLRec_A2
+PLRec_A1
+PLRec_N2B
+
+
+PLR_A1<- PLData %>% 
+    group_by(SEFL) %>%
+    cor_test(Recovery_Index, PLGluA1, method="pearson")
+
+#resilient - r=-0.33, p<0.05
+#susceptible = r=-0.10, p=0.65
+
+PLR_A2<- PLData %>% 
+    group_by(SEFL) %>%
+    cor_test(Recovery_Index, PLGluA2, method="pearson")
+
+#resilient - r=-0.20, p=0.16
+#susceptible = r=-0.13, p=0.56
+
+PLR_N2B<- PLData %>% 
+    group_by(SEFL) %>%
+    cor_test(Recovery_Index, PLGluN2B, method="pearson")
+
+#resilient - r=-0.66, p<0.0001
+#susceptible = r=-0.11, p=0.63
+
+PLResilientR_A1 <- FisherZ(-0.33)
+PLSusceptibleR_A1 <- FisherZ(-0.10)
+
+PLResilientR_A2 <- FisherZ(-0.20)
+PLSusceptibleR_A2 <- FisherZ(-0.13)
+
+PLResilientR_N2B <- FisherZ(-0.66)
+PLSusceptibleR_N2B <- FisherZ(-0.11)
+
+#A1
+
+#n resilient = 51
+#n susceptible = 20
+
+N1 <- 1/(51-3)
+N2 <- 1/(20-3)
+
+N <- N1 + N2
+
+ZR_1 <- (PLResilientR_A1 -PLSusceptibleR_A1)
+
+PLZdiffR_A1 <- ZR_1/sqrt(N)
+PLZdiffR_A1
+
+# -0.86 not significant
+
+#A2
+
+#n resilient = 53
+#n susceptible = 21
+
+N1b <- 1/(53-3)
+N2b <- 1/(21-3)
+
+Nb <- N1b + N2b
+
+ZR_2 <- (PLResilientR_A2 -PLSusceptibleR_A2)
+
+PLZdiffR_A2 <- ZR_2/sqrt(Nb)
+PLZdiffR_A2
+
+# -0.26 not significant
+
+#N2B
+
+#n resilient = 52
+#n susceptible = 21
+
+N1c <- 1/(52-3)
+N2c <- 1/(21-3)
+
+Nc <- N1c + N2c
+ZR_3 <- (PLResilientR_N2B -PLSusceptibleR_N2B)
+
+PLZdiffR_N2B <- ZR_3/sqrt(Nc)
+PLZdiffR_N2B
+
+# -2.48 significant
+
+```
+
+```{r PL Behavioural Graph}
+
+PLcorGraph <- ggarrange(PLFF_N2B, PLFF_A1, PLFF_A2, PLE3_N2B, PLE3_A1, PLE3_A2, PLTest_N2B, PLTest_A1, PLTest_A2, PLRec_N2B, PLRec_A1, PLRec_A2,
+                    labels = c("a", "", "","b", "", "","c", "", "","d", "", ""),
+                    font.label = list(size = 24, face = "bold"),
+                    ncol = 3, nrow = 4) +
+  theme(plot.margin = margin(0.1,1.5,0.1,1.5, "cm")) 
+PLcorGraph
+
+
+ggsave('PLcorGraph', PLcorGraph, width=25, height=36, units='in', device = "tiff", dpi = 300)
+
+```
+
+dHpc Analysis
+
+```{r dHpc GluN2B}
+
+dHpcGluN2BData <- select(AllData, c("Rat","SEFL","Shock", "dHpcGluN2B"))
+#remove outlier
+dHpcGluN2BData <- dHpcGluN2BData[-c(3), ]
+
+#first we visualise the data
+
+ggplot(dHpcGluN2BData,
+       aes( x = Shock, y = dHpcGluN2B)) +
+  geom_boxplot()
+
+ggplot(dHpcGluN2BData,
+       aes( x = SEFL, y = dHpcGluN2B)) +
+  geom_boxplot()
+
+
+ggplot(dHpcGluN2BData,
+       aes( x = Shock, y = dHpcGluN2B, fill = SEFL)) +
+  geom_boxplot()
+
+#Linear model for GluN2B data
+
+lm_dHpcGluN2B <- lm(dHpcGluN2B ~ Shock + SEFL + Shock:SEFL,
+            data = dHpcGluN2BData)
+
+#check assumptions
+
+resid_panel(lm_dHpcGluN2B,
+            plots = c("resid", "qq", "ls", "cookd"),
+            smoother = TRUE)
+
+resid_dHpcGluN2B <- residuals(lm_dHpcGluN2B)
+
+shapiro.test(resid_dHpcGluN2B)
+
+levene_test(dHpcGluN2BData, dHpcGluN2B ~ Shock * SEFL)
+
+#data is not normal (shapiro test = significant)
+#but ANOVA is robust to these issues and we have homogeneity of variance
+
+anova(lm_dHpcGluN2B)
+options(es.use_symbols = TRUE) 
+
+eta_squared(lm_dHpcGluN2B, partial = FALSE) 
+#significant effect of Shock * Shock: F(5,62) = 2.39, p < 0.05, eta = 0.16
+
+#we now do pairwise comparisons
+tukdHpcGluN2B <- tukey_hsd(lm_dHpcGluN2B)
+print(tukdHpcGluN2B, n=82)
+
+# 0-shock - 13-shock p.adj < 0.05
+
+dHpcsummaryGluN2B <- dHpcGluN2BData %>%
+  group_by(Shock, SEFL) %>%
+  get_summary_stats(type = "common")
+
+```
+
+```{r dHpc GluA1}
+
+#first we visualise the data
+
+dHpcGluA1Data <- select(AllData, c("Rat","SEFL","Shock", "dHpcGluA1"))
+#remove otulier
+dHpcGluA1Data <- dHpcGluA1Data[-c(25), ]
+
+ggplot(dHpcGluA1Data,
+       aes( x = Shock, y = dHpcGluA1)) +
+  geom_boxplot()
+
+ggplot(dHpcGluA1Data,
+       aes( x = SEFL, y = dHpcGluA1)) +
+  geom_boxplot()
+
+
+ggplot(dHpcGluA1Data,
+       aes( x = Shock, y = dHpcGluA1, fill = SEFL)) +
+  geom_boxplot()
+
+#Linear model for GluA1 data
+
+lm_dHpcGluA1 <- lm(dHpcGluA1 ~ Shock + SEFL + Shock:SEFL,
+                data = dHpcGluA1Data)
+
+#check assumptions
+
+resid_panel(lm_dHpcGluA1,
+            plots = c("resid", "qq", "ls", "cookd"),
+            smoother = TRUE)
+
+resid_dHpcGluA1 <- residuals(lm_dHpcGluA1)
+
+shapiro.test(resid_dHpcGluA1)
+levene_test(dHpcGluA1Data, dHpcGluA1 ~ Shock * SEFL)
+
+#data is normal and we have homogeneity of variance
+
+anova(lm_dHpcGluA1)
+eta_squared(lm_dHpcGluA1, partial = FALSE)
+#significant effect of Shock *** Shock: F(5,62) = 5.51, p < 0.001, eta = 0.30
+
+tukdHpcA1 <- tukey_hsd(lm_dHpcGluA1)
+print(tukdHpcA1, n=82)
+
+#0-shock - 13-shock p.adj < 0.01
+#4-shock - 13-shock p.adj < 0.001
+#9-shock - 13-shock p.adj < 0.001
+#12-shock - 13-shock p.adj <0.01
+
+dHpcsummaryGluA1 <- dHpcGluA1Data %>%
+  group_by(Shock, SEFL) %>%
+  get_summary_stats(type = "common")
+
+```
+
+```{r dHpc GluA2}
+
+dHpcGluA2Data <- select(AllData, c("Rat","SEFL","Shock", "dHpcGluA2"))
+
+#first we visualise the data
+ggplot(dHpcGluA2Data,
+       aes( x = Shock, y = dHpcGluA2)) +
+  geom_boxplot()
+
+ggplot(dHpcGluA2Data,
+       aes( x = SEFL, y = dHpcGluA2)) +
+  geom_boxplot()
+
+
+ggplot(dHpcGluA2Data,
+       aes( x = Shock, y = dHpcGluA2, fill = SEFL)) +
+  geom_boxplot()
+
+#Linear model for GluN2B data
+
+lm_dHpcGluA2 <- lm(dHpcGluA2 ~ Shock + SEFL + Shock:SEFL,
+               data = dHpcGluA2Data)
+
+#check assumptions
+
+resid_panel(lm_dHpcGluA2,
+            plots = c("resid", "qq", "ls", "cookd"),
+            smoother = TRUE)
+
+resid_dHpcGluA2 <- residuals(lm_dHpcGluA2)
+
+shapiro.test(resid_dHpcGluA2)
+levene_test(dHpcGluA2Data, dHpcGluA2 ~ Shock * SEFL)
+
+#data is not normal (shapiro test = significant)
+#but ANOVA is robust to these issues and we have homogeneity of variance
+
+anova(lm_dHpcGluA2)
+eta_squared(lm_dHpcGluA2, partial = FALSE)
+#significant effect of Shock **** Shock: F(5,63) = 7.23, p < 0.0001, eta = 0.35
+
+tukdHpcA2 <- tukey_hsd(lm_dHpcGluA2)
+print(tukdHpcA2, n=82)                                                                         
+#Shock:
+#0-shock - 13-shock p < 0.01
+#0-shock - 15-shock p < 0.05
+#4-shock - 13-shock p < 0.05
+#4-shock - 15-shock p < 0.01
+#9-shock - 13-shock p < 0.01
+#9-shock - 15-shock p < 0.05
+#12-shock - 13-shock p < 0.01
+#12-shock - 15-shock p < 0.05                                            
+
+dHpcsummaryGluA2 <- dHpcGluA2Data %>%
+  group_by(Shock, SEFL) %>%
+  get_summary_stats(type = "common")
+
+```
+
+```{r dHpc Bar Graph}
+
+dHpcN2B <- ggplot(dHpcsummaryGluN2B, aes(y = mean, x=Shock, pattern = SEFL, fill = Shock)) +
+  geom_bar_pattern(stat = "identity",  
+                   pattern_density = .2,
+                   pattern_spacing = .02,
+                   pattern_fill = 'white',
+                   pattern_color = "white",
+                   aes(pattern = SEFL), 
+                   position = position_dodge(preserve = "single"),
+                   width = 0.7,
+                   show.legend = TRUE)+
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  scale_pattern_manual(guide = "legend", values = c(Susceptible = "stripe", Resilient = "none")) +
+  labs(x="", y="GluN2B Expression Relative to Control (%)", pattern = "SEFL", subtitle = "GluN2B") + 
+  guides(fill = guide_legend(override.aes = list(pattern = "none"))) +
+  scale_y_continuous(limits=c(0, 800), breaks = c(0,100,200,300,400,500,600,700,800), expand = c(0,0)) + 
+  theme(axis.text.x=element_text(angle = 45, vjust = 1, hjust =1, size = 15, face="bold"), axis.text.y=element_text(size = 15, face="bold"), axis.title =element_text(size=18,face="bold"), title=element_text(size = 18, face = "bold"),plot.subtitle =element_text(size = 18), strip.text = element_text(size = 15, face = "bold")) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank())+
+  geom_signif(comparisons = list(c("0-shock","13-shock")),
+              map_signif_level = TRUE,
+              annotations = c("*"),
+              y_position = c(500),
+              color = c("black","black","black"),
+              size = .7, textsize = 10)  +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se),
+                width= .5,                    
+                position=position_dodge(0.7),
+                color = "black") +
+  geom_point(data = dHpcGluN2BData, aes(x = Shock, y = dHpcGluN2B), position = position_jitterdodge(jitter.width = 0)) +
+  theme(legend.position = c(0.87, 0.78), legend.key.size = unit(.8, 'cm')) + 
+ theme(legend.text=element_text(size=14, face = "bold"))
+
+dHpcN2B
+
+```
+
+```{r dHpc A1 plot}
+
+dHpcA1 <- ggplot(dHpcsummaryGluA1, aes(y = mean, x=Shock, pattern = SEFL, fill = Shock)) +
+  geom_bar_pattern(stat = "identity",  
+                   pattern_density = .2,
+                   pattern_spacing = .02,
+                   pattern_fill = 'white',
+                   pattern_color = "white",
+                   aes(pattern = SEFL), 
+                   position = position_dodge(preserve = "single"),
+                   width = 0.7,
+                   show.legend = TRUE)+
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  scale_pattern_manual(guide = "legend", values = c(Susceptible = "stripe", Resilient = "none")) +
+  labs(x="", y="GluA1 Expression Relative to Control (%)", pattern = "SEFL", subtitle = "GluA1") + 
+  guides(fill = guide_legend(override.aes = list(pattern = "none"))) +
+  scale_y_continuous(limits=c(0, 1250), breaks = c(0,200,400,600,800,1000,1200), expand = c(0,0)) + 
+  theme(axis.text.x=element_text(angle = 45, vjust = 1, hjust =1, size = 15, face="bold"), axis.text.y=element_text(size = 15, face="bold"), axis.title =element_text(size=18,face="bold"), title=element_text(size = 18, face = "bold"),plot.subtitle =element_text(size = 18), strip.text = element_text(size = 15, face = "bold")) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) +
+  theme(legend.position="none")  +
+  geom_signif(comparisons = list(c("0-shock","13-shock")),
+              map_signif_level = TRUE,
+              annotations = c("**"),
+              y_position = c(1000),
+              color = c("black","black","black"),
+              size = .7, textsize = 10)  +
+  geom_signif(comparisons = list(c("4-shock","13-shock")),
+              map_signif_level = TRUE,
+              annotations = c("***"),
+              y_position = c(900),
+              color = c("black","black","black"),
+              size = .7, textsize = 10) +
+  geom_signif(comparisons = list(c("9-shock","13-shock")),
+              map_signif_level = TRUE,
+              annotations = c("***"),
+              y_position = c(800),
+              color = c("black","black","black"),
+              size = .7, textsize = 10) +
+  geom_signif(comparisons = list(c("12-shock","13-shock")),
+              map_signif_level = TRUE,
+              annotations = c("**"),
+              y_position = c(700),
+              color = c("black","black","black"),
+              size = .7, textsize = 10) +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se),
+                width= .5,                    
+                position=position_dodge(0.7),
+                color = "black") +
+  theme(legend.position="none") +
+  geom_point(data = dHpcGluA1Data, aes(x = Shock, y = dHpcGluA1), position = position_jitterdodge(jitter.width = 0))
+
+dHpcA1
+```
+
+```{r dHpc A2 plot}
+dHpcA2 <- ggplot(dHpcsummaryGluA2, aes(y = mean, x=Shock, pattern = SEFL, fill = Shock)) +
+  geom_bar_pattern(stat = "identity",  
+                   pattern_density = .2,
+                   pattern_spacing = .02,
+                   pattern_fill = 'white',
+                   pattern_color = "white",
+                   aes(pattern = SEFL), 
+                   position = position_dodge(preserve = "single"),
+                   width = 0.7,
+                   show.legend = TRUE)+
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  scale_pattern_manual(guide = "legend", values = c(Susceptible = "stripe", Resilient = "none")) + 
+  labs(x="", y="GluA2 Expression Relative to Control (%)", pattern = "SEFL", subtitle = "GluA2") + 
+  guides(fill = guide_legend(override.aes = list(pattern = "none"))) +
+  scale_y_continuous(limits=c(0, 2350),breaks = c(0,300,600,900,1200,1500,1800,2100), expand = c(0,0)) + 
+  theme(axis.text.x=element_text(angle = 45, vjust = 1, hjust =1, size = 15, face="bold"), axis.text.y=element_text(size = 15, face="bold"), axis.title =element_text(size=18,face="bold"), title=element_text(size = 18, face = "bold"),plot.subtitle =element_text(size = 18), strip.text = element_text(size = 15, face = "bold")) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se),
+                width= .5,                    
+                position=position_dodge(0.7),
+                color = "black") +
+  geom_point(data = dHpcGluA2Data, aes(x = Shock, y = dHpcGluA2), position = position_jitterdodge(jitter.width = 0))  +
+  geom_signif(comparisons = list(c("0-shock","13-shock")),
+              map_signif_level = TRUE,
+              annotations = c("**"),
+              y_position = c(1200),
+              color = c("black","black","black"),
+              size = .7, textsize = 10) +
+  geom_signif(comparisons = list(c("0-shock","15-shock")),
+              map_signif_level = TRUE,
+              annotations = c("*"),
+              y_position = c(2000),
+              color = c("black","black","black"),
+              size = .7, textsize = 10) +
+  geom_signif(comparisons = list(c("4-shock","13-shock")),
+              map_signif_level = TRUE,
+              annotations = c("*"),
+              y_position = c(1000),
+              color = c("black","black","black"),
+              size = .7, textsize = 10) +
+  geom_signif(comparisons = list(c("4-shock","15-shock")),
+              map_signif_level = TRUE,
+              annotations = c("**"),
+              y_position = c(1800),
+              color = c("black","black","black"),
+              size = .7, textsize = 10) +
+  geom_signif(comparisons = list(c("9-shock","13-shock")),
+              map_signif_level = TRUE,
+              annotations = c("**"),
+              y_position = c(800),
+              color = c("black","black","black"),
+              size = .7, textsize = 10) +
+  geom_signif(comparisons = list(c("9-shock","15-shock")),
+              map_signif_level = TRUE,
+              annotations = c("*"),
+              y_position = c(1600),
+              color = c("black","black","black"),
+              size = .7, textsize = 10) +
+  geom_signif(comparisons = list(c("12-shock","13-shock")),
+              map_signif_level = TRUE,
+              annotations = c("**"),
+              y_position = c(600),
+              color = c("black","black","black"),
+              size = .7, textsize = 10) +
+  geom_signif(comparisons = list(c("12-shock","15-shock")),
+              map_signif_level = TRUE,
+              annotations = c("*"),
+              y_position = c(1400),
+              color = c("black","black","black"),
+              size = .7, textsize = 10) +
+  theme(legend.position="none") 
+
+dHpcA2
+```
+
+```{r dHpc Boxplot}
+
+dHpcN2B_SEFL <- ggplot(dHpcGluN2BData,
+       aes( x = SEFL, y = dHpcGluN2B)) +
+  geom_boxplot() +
+    geom_jitter(color= c("#636363"), size=.7, alpha=.7) + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) +
+  labs(X = "", y="GluN2B Expression Relative to Control (%)") +
+  geom_signif(comparisons = list(c("Resilient","Susceptible")),
+              map_signif_level = TRUE,
+              annotations = c("NS"),
+              y_position = c(600),
+              color = c("black","black","black"),
+              size = 1, textsize = 5)  + 
+  theme(axis.text.x=element_text(size = 15, face="bold"), axis.text.y=element_text(size = 15, face="bold"), axis.title =element_text(size=18,face="bold"), title=element_text(size = 18, face = "bold"),plot.subtitle =element_text(size = 18), strip.text = element_text(size = 15, face = "bold")) +
+  scale_y_continuous(limits=c(0, 800)) +
+  theme(legend.position="none")
+
+dHpcN2B_SEFL
+
+dHpcA1_SEFL <- ggplot(dHpcGluA1Data,
+       aes( x = SEFL, y = dHpcGluA1)) +
+  geom_boxplot() +
+    geom_jitter(color= c("#636363"), size=.7, alpha=.7) + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) +
+  labs(X = "",y="GluA1 Expression Relative to Control (%)") +
+  geom_signif(comparisons = list(c("Resilient","Susceptible")),
+              map_signif_level = TRUE,
+              annotations = c("NS"),
+              y_position = c(900),
+              color = c("black","black","black"),
+              size = 1, textsize = 5) + 
+  theme(axis.text.x=element_text(size = 15, face="bold"), axis.text.y=element_text(size = 15, face="bold"), axis.title =element_text(size=18,face="bold"), title=element_text(size = 18, face = "bold"),plot.subtitle =element_text(size = 18), strip.text = element_text(size = 15, face = "bold")) +
+  scale_y_continuous(limits=c(0, 1200)) +
+  theme(legend.position="none")
+dHpcA1_SEFL
+
+dHpcA2_SEFL <- ggplot(dHpcGluA2Data,
+       aes( x = SEFL, y = dHpcGluA2)) +
+  geom_boxplot() +
+    geom_jitter(color= c("#636363"), size=.7, alpha=.7) + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) +
+  labs(X = "",y="GluA2 Expression Relative to Control (%)") +
+  geom_signif(comparisons = list(c("Resilient","Susceptible")),
+              map_signif_level = TRUE,
+              annotations = c("NS"),
+              y_position = c(1750),
+              color = c("black","black","black"),
+              size = 1, textsize = 5) + 
+  theme(axis.text.x=element_text(size = 15, face="bold"), axis.text.y=element_text(size = 15, face="bold"), axis.title =element_text(size=18,face="bold"), title=element_text(size = 18, face = "bold"),plot.subtitle =element_text(size = 18), strip.text = element_text(size = 15, face = "bold")) +
+  scale_y_continuous(limits=c(0, 2300))
+dHpcA2_SEFL
+
+```
+
+```{r final dHpc figure}
+
+dHpcplot <- ggarrange(dHpcN2B, dHpcA1, dHpcA2, dHpcN2B_SEFL,dHpcA1_SEFL, dHpcA2_SEFL,
+                    labels = c("a", "", "", "b", "", ""),
+                    font.label = list(size = 26, face = "bold"),
+                    ncol = 3, nrow = 2) +
+  theme(plot.margin = margin(0.1,1.5,0.1,1.5, "cm")) 
+dHpcplot
+
+ggsave('dHpcplot', dHpcplot, width=23, height=18, units='in', device = "tiff", dpi = 600)
+```
+
+Correlations between subunit expression in the dHpc
+
+```{r dHpc GluA1:GluN2B}
+
+resilientdHpc <- select(dHpcData, c("Rat","SEFL","Shock", "Average_Freezing_Extinction_Session","Average_Freezing_Last_3_mins_Extinction", "Recovery_Index","Total_Freezing_During_Test","dHpcGluN2B", "dHpcGluA1", "dHpcGluA2"))
+resilientdHpc <- resilientdHpc[ which(resilientdHpc$SEFL=="Resilient"), ]
+
+susceptibledHpc <- select(dHpcData, c("Rat","SEFL","Shock", "Average_Freezing_Extinction_Session","Average_Freezing_Last_3_mins_Extinction", "Recovery_Index","Total_Freezing_During_Test","dHpcGluN2B", "dHpcGluA1", "dHpcGluA2"))
+susceptibledHpc <- susceptibledHpc[ which(susceptibledHpc$SEFL=="Susceptible"), ]
+
+dHpcResilient1 <- lm(dHpcGluN2B ~ dHpcGluA1, data = resilientdHpc)
+dHpcResilient1
+#y = 0.64X + 79.86
+
+dHpcSusceptible1 <- lm(dHpcGluN2B ~ dHpcGluA1, data = susceptibledHpc)
+dHpcSusceptible1
+#y = 0.18x + 111.73
+
+dHpcA1_N2B <- ggplot(dHpcData,
+       aes(x = dHpcGluA1,
+           y = dHpcGluN2B, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = dHpcData$Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) +
+  geom_abline(intercept = 79.86, slope = 0.64, size = 1.2) +
+  geom_abline(intercept = 111.73, slope = 0.18, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 15, face = "bold"),axis.text.y=element_text(size = 15, face = "bold"), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA1 Expression Relative to Control (%)", y="GluN2B Expression Relative to Control (%)") +
+  scale_x_continuous(limits=c(0, 1300), breaks = c(0,200,400,600,800,1000,1200), expand = c(0,0))
+dHpcA1_N2B
+```
+
+```{r dHpc GluA2:GluN2B}
+
+dHpcResilient2 <- lm(dHpcGluN2B ~ dHpcGluA2, data = resilientdHpc)
+dHpcResilient2
+#y = 0.25X + 125.39
+
+dHpcSusceptible2 <- lm(dHpcGluN2B ~ dHpcGluA2, data = susceptibledHpc)
+dHpcSusceptible2
+#y = 0.07X + 124.91
+
+dHpcA2_N2B<- ggplot(dHpcData,
+       aes(x = dHpcGluA2,
+           y = dHpcGluN2B, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = dHpcData$Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) +
+   geom_abline(intercept = 125.39, slope = 0.25, size = 1.2) +
+  geom_abline(intercept = 124.91, slope = 0.07, linetype = "dashed",size = 1.2) +
+  geom_segment(aes(x=0, xend=150,y=750,yend=750), size = 1.3, color = "black") +
+  geom_segment(aes(x=0, xend=150,y=700,yend=700), size = 1.3, color = "black", linetype = "dashed") + 
+  annotate(geom="text", x=400, y=750, label="Resilient",
+              color="black", size = 6,fontface = "bold" ) +
+  annotate(geom="text", x=450, y=700, label="Susceptible",
+              color="black", size =6, fontface = "bold") +
+  theme(axis.text.x=element_text(size = 15, face = "bold"),axis.text.y=element_text(size = 15, face = "bold"), axis.title =element_text(size=15,face="bold")) +
+  theme(legend.position="none") +
+  labs(x="GluA2 Expression Relative to Control (%)", y="GluN2B Expression Relative to Control (%)")
+dHpcA2_N2B
+
+```
+
+```{r dHpc GluA2:GluA1}
+dHpcResilient3 <- lm(dHpcGluA1 ~ dHpcGluA2, data = resilientdHpc, na.action=na.omit)
+dHpcResilient3
+#y = 0.35X + 73.41
+
+dHpcSusceptible3 <- lm(dHpcGluA1 ~ dHpcGluA2, data = susceptibledHpc, na.action=na.omit)
+dHpcSusceptible3
+#y = 0.49X + 23.61
+
+dHpcA2_A1<- ggplot(dHpcData,
+       aes(x = dHpcGluA2,
+           y = dHpcGluA1, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = dHpcData$Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) +
+ geom_abline(intercept = 73.41, slope = 0.35, size = 1.2) +
+  geom_abline(intercept = 23.61, slope = 0.49, linetype = "dashed", size = 1.2) +
+theme(legend.position = c(0.13, 0.73), legend.key.size = unit(1, 'cm')) +
+  theme(axis.text.x=element_text(size = 15, face = "bold"),axis.text.y=element_text(size = 15, face = "bold"), axis.title =element_text(size=15,face="bold")) + 
+ theme(legend.text=element_text(size=12, face = "bold")) +
+  labs(x="GluA2 Expression Relative to Control (%)", y="GluA1 Expression Relative to Control (%)")
+  dHpcA2_A1
+  
+```
+
+```{r dHpc Subunit Correlation Plot}
+dHpcsubunits <- ggarrange(dHpcA2_A1, dHpcA1_N2B, dHpcA2_N2B,
+                    labels = c("a", "b", "c"),
+                    font.label = list(size = 24, face = "bold"),
+                    ncol = 3, nrow = 1) +
+  theme(plot.margin = margin(1,1,1,1, "cm")) 
+dHpcsubunits
+
+ggsave('dHpcsubunits', dHpcsubunits, width=25, height=9, units='in', device = "tiff", dpi = 600)
+```
+
+Comparing the regressions
+
+```{r dHpc A1-A2 comparison}
+
+dHpcA1_A2<- dHpcData %>% 
+    group_by(SEFL) %>%
+    cor_test(dHpcGluA2, dHpcGluA1, method="pearson")
+
+#resilient - r=0.71, p <.0001
+#susceptible = r=0.95, p<.0001
+
+```
+
+```{r PL A1-N2B comparison}
+dHpcA1_N2B<- dHpcData %>% 
+    group_by(SEFL) %>%
+    cor_test(dHpcGluN2B, dHpcGluA1, method="pearson")
+
+#resilient - r=0.64, p <.0001
+#susceptible = r=0.49, p<.05
+
+```
+
+```{r PL A2-N2B comparison}
+
+dHpcA2_N2B <- dHpcData %>% 
+    group_by(SEFL) %>%
+    cor_test(dHpcGluN2B, dHpcGluA2, method="pearson")
+
+#resilient - r=0.50, p<.001
+#susceptible = r=0.34, p= .12
+```
+
+Fisher's Z-Scores
+
+```{r dHpc Fisher Transform}
+
+dHpcResilientA1_A2 <- FisherZ(0.71)
+dHpcSusceptibleA1_A2 <- FisherZ(0.95)
+
+dHpcResilientA1_N2B <- FisherZ(0.64)
+dHpcSusceptibleA1_N2B <- FisherZ(0.49)
+
+dHpcResilientA2_N2B <- FisherZ(0.50)
+dHpcSusceptibleA2_N2B <- FisherZ(0.34)
+```
+
+```{r dHpc Zdiff A1_A2}
+#n resilient = 51
+#n susceptible = 23
+
+
+N1 <- 1/(51-3)
+N2 <- 1/(23-3)
+
+N <- N1 + N2
+
+Z1 <- (dHpcResilientA1_A2 -dHpcSusceptibleA1_A2)
+
+dHpcZdiffA1_A2 <- Z1/sqrt(N)
+dHpcZdiffA1_A2
+#=-3.55
+#signiicant
+
+```
+
+```{r dHpc Zdiff A1_N2B}
+#n resilient = 51
+#n susceptible = 22
+
+N2b <- 1/(22-3)
+
+Nb <- N1 + N2b
+
+Z2 <- (dHpcResilientA1_N2B -dHpcSusceptibleA1_N2B)
+
+dHpcZdiffA1_N2B <- Z2/sqrt(Nb)
+dHpcZdiffA1_N2B
+#=0.82
+#not significant
+
+```
+
+```{r dHpc Zdiff A2_N2B}
+#n resilient = 52
+#n susceptible = 22
+
+
+N1c <- 1/(52-3)
+
+Nc <- N1c + N2b
+Z3 <- (dHpcResilientA2_N2B -dHpcSusceptibleA2_N2B)
+
+dHpcZdiffA2_N2B <- Z3/sqrt(Nc)
+dHpcZdiffA2_N2B
+#=0.72
+#= not significant
+```
+
+Behavioural Correlations with dHpc Data
+
+```{r dHpc Expression and Freezing During Extinction Training}
+
+#first we work out the correlations
+
+
+dHpcResGluN2B <- lm(Average_Freezing_Extinction_Session ~ dHpcGluN2B, data = resilientdHpc)
+dHpcResGluN2B
+
+dHpcSusGluN2B <- lm(Average_Freezing_Extinction_Session ~ dHpcGluN2B, data = susceptibledHpc)
+dHpcSusGluN2B
+
+dHpcResGluA1 <- lm(Average_Freezing_Extinction_Session ~ dHpcGluA1, data = resilientdHpc)
+dHpcResGluA1
+
+dHpcSusGluA1 <- lm(Average_Freezing_Extinction_Session ~ dHpcGluA1, data = susceptibledHpc)
+dHpcSusGluA1
+
+dHpcResGluA2 <- lm(Average_Freezing_Extinction_Session~ dHpcGluA2, data = resilientdHpc)
+dHpcResGluA2
+
+dHpcSusGluA2 <- lm(Average_Freezing_Extinction_Session ~ dHpcGluA2, data = susceptibledHpc)
+dHpcSusGluA2
+
+
+dHpcFF_A1 <- ggplot(dHpcData,
+       aes(x = dHpcGluA1,
+           y = Average_Freezing_Extinction_Session, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = 2.96, slope = 0.035, size = 1.2) +
+  geom_abline(intercept = 32.65, slope = -0.0016, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12, face = "bold"),axis.text.y=element_text(size = 12, face = "bold"), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA1 Expression Relative to Control (%)", y="Mean Freezing During Extinction Session (%)") +
+  scale_x_continuous(limits=c(0, 1300), breaks = c(0,200,400,600,800,1000,1200), expand = c(0,0))
+
+dHpcFF_N2B <- ggplot(dHpcData,
+       aes(x = dHpcGluN2B,
+           y = Average_Freezing_Extinction_Session, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+   geom_abline(intercept = 3.38, slope = 0.025, size = 1.2) +
+  geom_abline(intercept = 38.73, slope = -0.041, linetype = "dashed", size = 1.2) +
+  theme(axis.text.x=element_text(size = 12, face = "bold"),axis.text.y=element_text(size = 12, face = "bold"), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluN2B Expression Relative to Control (%)", y="Mean Freezing During Extinction Session (%)") +
+  geom_segment(aes(x=550, xend=630,y=3,yend=3), size = 1.3, color = "black") +
+  geom_segment(aes(x=550, xend=630,y=0,yend=0), size = 1.3, color = "black", linetype = "dashed") +
+  annotate(geom="text", x=690, y=3, label="Resilient",
+              color="black", size = 6, fontface = "bold") +
+  annotate(geom="text", x=705, y=0, label="Susceptible",
+              color="black", size = 6, fontface = "bold") +
+  scale_x_continuous(limits=c(0, 820), breaks = c(0,200,400,600,800), expand = c(0,0)) + 
+  theme(legend.position = c(0.82, 0.78), legend.key.size = unit(1, 'cm'), legend.text = element_text(size=14, face = "bold")) 
+
+dHpcFF_A2 <- ggplot(dHpcData,
+       aes(x = dHpcGluA2,
+           y = Average_Freezing_Extinction_Session, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = 5.56, slope = 0.011, size = 1.2) +
+  geom_abline(intercept = 32.44, slope = -0.00038, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12, face = "bold"),axis.text.y=element_text(size = 12, face = "bold"), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA2 Expression Relative to Control (%)", y="Mean Freezing During Extinction Session (%)") + 
+  theme(legend.position="none") +
+  scale_x_continuous(limits=c(0, 2300), breaks = c(0,300,600,900,1200,1500,1800,2100), expand = c(0,0))
+
+
+dHpcFF_A2
+dHpcFF_A1
+dHpcFF_N2B
+
+dHpcFF_A1cor<- dHpcData %>% 
+    group_by(SEFL) %>%
+    cor_test(Average_Freezing_Extinction_Session, dHpcGluA1, method="pearson")
+
+#resilient - r= 0.54, p < .0001
+#susceptible = r=-0.051, p=0.8
+
+dHpcFF_A2cor<- dHpcData %>% 
+    group_by(SEFL) %>%
+    cor_test(Average_Freezing_Extinction_Session, dHpcGluA2, method="pearson")
+
+#resilient - r=0.36, p<.01
+#susceptible = r=-0.023, p=0.92
+
+dHpcFF_N2Bcor<- dHpcData %>% 
+    group_by(SEFL) %>%
+    cor_test(Average_Freezing_Extinction_Session, dHpcGluN2B, method="pearson")
+
+#resilient - r=0.39, p < .01
+#susceptible = r=-0.46, p < .05
+
+dHpcResilientFF_A1 <- FisherZ(0.54)
+dHpcSusceptibleFF_A1 <- FisherZ(-0.051)
+
+dHpcResilientFF_A2 <- FisherZ(0.36)
+dHpcSusceptibleFF_A2 <- FisherZ(-0.023)
+
+dHpcResilientFF_N2B <- FisherZ(0.39)
+dHpcSusceptibleFF_N2B <- FisherZ(-0.46)
+
+#Zdiff for A1
+#n resilient = 51
+#n susceptible = 23
+
+N1 <- 1/(51-3)
+N2 <- 1/(23-3)
+
+N <- N1 + N2
+
+Z1 <- (dHpcResilientFF_A1 -dHpcSusceptibleFF_A1)
+
+dHpcZdiffFF_A1 <- Z1/sqrt(N)
+dHpcZdiffFF_A1
+
+# = 2.46 = significant
+
+#Zdiff for A2
+
+#n resilient = 52
+#n susceptible = 23
+
+N1b <- 1/(52-3)
+
+Nb <- N1b + N2
+
+Z2 <- (dHpcResilientFF_A2 -dHpcSusceptibleFF_A2)
+
+dHpcZdiffFF_A2 <- Z2/sqrt(Nb)
+dHpcZdiffFF_A2
+
+# = 1.51 = not significant
+
+#Zdiff for N2B
+
+#n resilient = 52
+#n susceptible = 22
+
+N2c <- 1/(22-3)
+
+Nc <- N1b + N2c
+
+Z3 <- (dHpcResilientFF_N2B -dHpcSusceptibleFF_N2B)
+
+dHpcZdiffFF_N2B <- Z3/sqrt(Nc)
+dHpcZdiffFF_N2B
+
+# = 3.36 = significant
+
+```
+
+```{r dHpc Expression and Freezing During Final 3 Mins Extinction Training}
+
+dHpcRes3GluN2B <- lm(Average_Freezing_Last_3_mins_Extinction ~ dHpcGluN2B, data = resilientdHpc)
+dHpcRes3GluN2B
+
+dHpcSus3GluN2B <- lm(Average_Freezing_Last_3_mins_Extinction ~ dHpcGluN2B, data = susceptibledHpc)
+dHpcSus3GluN2B
+
+dHpcRes3GluA1 <- lm(Average_Freezing_Last_3_mins_Extinction ~ dHpcGluA1, data = resilientdHpc)
+dHpcRes3GluA1
+
+dHpcSus3GluA1 <- lm(Average_Freezing_Last_3_mins_Extinction ~ dHpcGluA1, data = susceptibledHpc)
+dHpcSus3GluA1
+
+dHpcRes3GluA2 <- lm(Average_Freezing_Last_3_mins_Extinction ~ dHpcGluA2, data = resilientdHpc)
+dHpcRes3GluA2
+
+dHpcSus3GluA2 <- lm(Average_Freezing_Last_3_mins_Extinction ~ dHpcGluA2, data = susceptibledHpc)
+dHpcSus3GluA2
+
+dHpcE3_A1 <- ggplot(dHpcData,
+       aes(x = dHpcGluA1,
+           y = Average_Freezing_Last_3_mins_Extinction, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = 0.43, slope = 0.023, size = 1.2) +
+  geom_abline(intercept = 13.81, slope = -0.006, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA1 Expression Relative to Control (%)", y="Mean Freezing During Final 3 mins Extinction (%)") +
+  scale_x_continuous(limits=c(0, 1300), breaks = c(0,200,400,600,800,1000,1200), expand = c(0,0))
+
+dHpcE3_N2B <- ggplot(dHpcData,
+       aes(x = dHpcGluN2B,
+           y = Average_Freezing_Last_3_mins_Extinction, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = 0.34, slope = 0.02, size = 1.2) +
+  geom_abline(intercept = 19.42, slope = -0.043, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluN2B Expression Relative to Control (%)", y="Mean Freezing During Final 3 mins Extinction (%)") +
+  scale_x_continuous(limits=c(0, 820), breaks = c(0,200,400,600,800), expand = c(0,0))
+
+dHpcE3_A2 <- ggplot(dHpcData,
+       aes(x = dHpcGluA2,
+           y = Average_Freezing_Last_3_mins_Extinction, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+ geom_abline(intercept = 1.67, slope = 0.01, size = 1.2) +
+  geom_abline(intercept = 13.71, slope = -0.0029, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA2 Expression Relative to Control (%)", y="Mean Freezing During Final 3 mins Extinction (%)") +
+  scale_x_continuous(limits=c(0, 2300), breaks = c(0,300,600,900,1200,1500,1800,2100), expand = c(0,0)) +
+  theme(legend.position="none")
+
+
+dHpcE3_A2
+dHpcE3_A1
+dHpcE3_N2B
+
+
+dHpcTF_A1<- dHpcData %>% 
+    group_by(SEFL) %>%
+    cor_test(Average_Freezing_Last_3_mins_Extinction, dHpcGluA1, method="pearson")
+
+#resilient - r= 0.37, p < 0.01
+#susceptible = r=-0.091, p=0.68
+
+dHpcTF_A2<- dHpcData %>% 
+    group_by(SEFL) %>%
+    cor_test(Average_Freezing_Last_3_mins_Extinction, dHpcGluA2, method="pearson")
+
+#resilient - r=0.34, p < 0.05
+#susceptible = r=-0.089, p=0.69
+
+dHpcTF_N2B<- dHpcData %>% 
+    group_by(SEFL) %>%
+    cor_test(Average_Freezing_Last_3_mins_Extinction, dHpcGluN2B, method="pearson")
+
+#resilient - r=0.3, p < 0.05
+#susceptible = r=-0.25, p=0.27
+
+dHpcResilientTF_A1 <- FisherZ(0.37)
+dHpcSusceptibleTF_A1 <- FisherZ(-0.091)
+
+dHpcResilientTF_A2 <- FisherZ(0.34)
+dHpcSusceptibleTF_A2 <- FisherZ(-0.089)
+
+dHpcResilientTF_N2B <- FisherZ(0.3)
+dHpcSusceptibleTF_N2B <- FisherZ(-0.25)
+
+#A1
+
+#n resilient = 51
+#n susceptible = 23
+
+N1 <- 1/(51-3)
+N2 <- 1/(23-3)
+
+N <- N1 + N2
+
+Z13 <- (dHpcResilientTF_A1 -dHpcSusceptibleTF_A1)
+
+dHpcZdiffTF_A1 <- Z13/sqrt(N)
+dHpcZdiffTF_A1
+
+# 1.80 not significant
+
+#A2
+
+#n resilient = 52
+#n susceptible = 23
+
+N1b <- 1/(52-3)
+
+Nb <- N1b + N2
+
+Z23 <- (dHpcResilientTF_A2 -dHpcSusceptibleTF_A2)
+
+dHpcZdiffTF_A2 <- Z23/sqrt(Nb)
+dHpcZdiffTF_A2
+
+#1.67 not significant
+
+#N2B
+
+#n resilient = 52
+#n susceptible = 22
+
+
+N2c <- 1/(22-3)
+
+Nc <- N1b + N2c
+
+Z33 <- (dHpcResilientTF_N2B -dHpcSusceptibleTF_N2B)
+
+dHpcZdiffTF_N2B <- Z33/sqrt(Nc)
+dHpcZdiffTF_N2B
+
+# = 2.09 = significant
+```
+
+```{r dHpc Expression and Test Freezing}
+
+dHpcResTGluN2B <- lm(Total_Freezing_During_Test ~ dHpcGluN2B, data = resilientdHpc)
+PLResTGluN2B
+#y = 0.01X - 0.17
+
+dHpcSusTGluN2B <- lm(Total_Freezing_During_Test ~ dHpcGluN2B, data = susceptibledHpc)
+dHpcSusTGluN2B
+#y = -0.07X + 31.93
+
+dHpcResTGluA1 <- lm(Total_Freezing_During_Test ~ dHpcGluA1, data = resilientdHpc)
+dHpcResTGluA1
+#y = 0.02X + 0.21
+
+dHpcSusTGluA1 <- lm(Total_Freezing_During_Test ~ dHpcGluA1, data = susceptibledHpc)
+dHpcSusTGluA1
+#y = -0.003X + 20.99
+
+dHpcResTGluA2 <- lm(Total_Freezing_During_Test ~ dHpcGluA2, data = resilientdHpc)
+dHpcResTGluA2
+#y = 0.009X + 0.57
+
+dHpcSusTGluA2 <- lm(Total_Freezing_During_Test ~ dHpcGluA2, data = susceptibledHpc)
+dHpcSusTGluA2
+#y = -0.0006X + 20.5
+
+dHpcTest_A1 <- ggplot(dHpcData,
+       aes(x = dHpcGluA1,
+           y = Total_Freezing_During_Test, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = 0.21, slope = 0.02, size = 1.2) +
+  geom_abline(intercept = 20.99, slope = -0.003, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12, face = "bold"), axis.text.y=element_text(size = 12, face = "bold"),axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA1 Expression Relative to Control (%)", y="Mean Freezing During Test (%)") +
+  theme(legend.position = "none")  +
+  scale_x_continuous(limits=c(0, 1300), breaks = c(0,200,400,600,800,1000,1200), expand = c(0,0))
+
+dHpcTest_N2B <- ggplot(dHpcData,
+       aes(x = dHpcGluN2B,
+           y = Total_Freezing_During_Test, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+ geom_abline(intercept = -0.17, slope = 0.01, size = 1.2) +
+  geom_abline(intercept = 31.93, slope = -0.07, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12, face = "bold"), axis.text.y=element_text(size = 12, face = "bold"),axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluN2B Expression Relative to Control (%)", y="Mean Freezing During Test (%)") +
+  scale_x_continuous(limits=c(0, 820), breaks = c(0,200,400,600,800), expand = c(0,0))
+
+
+dHpcTest_A2 <- ggplot(dHpcData,
+       aes(x = dHpcGluA2,
+           y = Total_Freezing_During_Test, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank())  + 
+ geom_abline(intercept = 0.57, slope = 0.009, size = 1.2) +
+  geom_abline(intercept = 20.5, slope = -0.0006, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12), axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA2 Expression Relative to Control (%)", y="Mean Freezing During Test (%)") +
+  scale_x_continuous(limits=c(0, 2300), breaks = c(0,300,600,900,1200,1500,1800,2100), expand = c(0,0))
+
+
+dHpcTest_A2
+dHpcTest_A1
+dHpcTest_N2B
+
+dHpcT_A1<- dHpcData %>% 
+    group_by(SEFL) %>%
+    cor_test(Total_Freezing_During_Test, dHpcGluA1, method="pearson")
+
+#resilient - r= 0.46, p < 0.001
+#susceptible = r=-0.05, p=0.81
+
+dHpcT_A2<- dHpcData %>% 
+    group_by(SEFL) %>%
+    cor_test(Total_Freezing_During_Test, dHpcGluA2, method="pearson")
+
+#resilient - r=0.58, p < 0.0001
+#susceptible = r=-0.02, p=0.92
+
+dHpcT_N2B<- dHpcData %>% 
+    group_by(SEFL) %>%
+    cor_test(Total_Freezing_During_Test, dHpcGluN2B, method="pearson")
+
+#resilient - r=0.43, p < 0.01
+#susceptible = r=-0.47, p < 0.05
+
+
+dHpcResilientT_A1 <- FisherZ(0.46)
+dHpcSusceptibleT_A1 <- FisherZ(-0.05)
+
+dHpcResilientT_A2 <- FisherZ(0.58)
+dHpcSusceptibleT_A2 <- FisherZ(-0.02)
+
+dHpcResilientT_N2B <- FisherZ(0.43)
+dHpcSusceptibleT_N2B <- FisherZ(-0.47)
+
+
+#A1
+
+#n resilient = 51
+#n susceptible = 23
+
+N1 <- 1/(51-3)
+N2 <- 1/(23-3)
+
+N <- N1 + N2
+
+Z1F <- (dHpcResilientT_A1 -dHpcSusceptibleT_A1)
+
+dHpcZdiffT_A1 <- Z1F/sqrt(N)
+dHpcZdiffT_A1
+
+# 2.06 = significant
+
+#A2
+
+N1b <- 1/(52-3)
+
+Nb <- N1b + N2
+
+Z2F <- (dHpcResilientT_A2 -dHpcSusceptibleT_A2)
+
+dHpcZdiffT_A2 <- Z2F/sqrt(Nb)
+dHpcZdiffT_A2
+
+#2.57 = significant
+
+#N2B
+
+#n resilient = 52
+#n susceptible = 22
+
+
+N2c <- 1/(22-3)
+
+Nc <- N1b + N2c
+
+Z3F <- (dHpcResilientT_N2B -dHpcSusceptibleT_N2B)
+
+dHpcZdiffT_N2B <- Z3F/sqrt(Nc)
+dHpcZdiffT_N2B
+
+#3.59 = significant
+
+```
+
+```{r dHpc Expression and Recovery Index}
+
+dHpcResRGluN2B <- lm(Recovery_Index ~ dHpcGluN2B, data = resilientdHpc)
+dHpcResRGluN2B
+#y = -0.04X + 5.15
+
+dHpcSusRGluN2B <- lm(Recovery_Index ~ dHpcGluN2B, data = susceptibledHpc)
+dHpcSusRGluN2B
+#y = -0.04X + 22.29
+
+dHpcResRGluA1 <- lm(Recovery_Index ~ dHpcGluA1, data = resilientdHpc)
+dHpcResRGluA1
+#y = - 0.04X + 3.42
+
+dHpcSusRGluA1 <- lm(Recovery_Index ~ dHpcGluA1, data = susceptibledHpc)
+dHpcSusRGluA1
+#y = 0.01X + 12.44
+
+dHpcResRGluA2 <- lm(Recovery_Index ~ dHpcGluA2, data = resilientdHpc)
+dHpcResRGluA2
+#y = -0.02X + 1.35
+
+dHpcSusRGluA2 <- lm(Recovery_Index ~ dHpcGluA2, data = susceptibledHpc)
+dHpcSusRGluA2
+#y = 0.007X + 11.94
+
+dHpcRec_A2 <- ggplot(dHpcData,
+       aes(x = dHpcGluA2,
+           y = Recovery_Index, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = 1.35, slope = -0.02, size = 1.2) +
+  geom_abline(intercept = 11.94, slope = -0.007, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12, face = "bold"), axis.text.y=element_text(size = 12, face = "bold"),axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA2 Expression Relative to Control (%)", y="Recovery Index (%)") +
+  scale_x_continuous(limits=c(0, 2300), breaks = c(0,300,600,900,1200,1500,1800,2100), expand = c(0,0))
+
+dHpcRec_N2B <- ggplot(dHpcData,
+       aes(x = dHpcGluN2B,
+           y = Recovery_Index, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = 5.15, slope = -0.04, size = 1.2) +
+  geom_abline(intercept = 22.29, slope = -0.04, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12, face = "bold"), axis.text.y=element_text(size = 12, face = "bold"),axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluN2B Expression Relative to Control (%)", y="Recovery Index (%)") +
+  scale_x_continuous(limits=c(0, 820), breaks = c(0,200,400,600,800), expand = c(0,0))
+
+dHpcRec_A1 <- ggplot(dHpcData,
+       aes(x = dHpcGluA1,
+           y = Recovery_Index, color = Shock, shape = SEFL)) +
+  geom_point(aes(color = Shock), size = 4) +
+  scale_fill_nejm() +
+  scale_color_nejm() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_rect(colour = "black", fill = "white"), 
+        axis.line = element_line(colour = "black")) + theme(legend.title = element_blank()) + 
+  geom_abline(intercept = 3.42, slope = -0.04, size = 1.2) +
+  geom_abline(intercept = 12.44, slope = 0.01, linetype = "dashed", size = 1.2) +
+  theme(legend.position="none") +
+  theme(axis.text.x=element_text(size = 12, face = "bold"), axis.text.y=element_text(size = 12, face = "bold"),axis.title =element_text(size=15,face="bold")) +
+  labs(x="GluA1 Expression Relative to Control (%)", y="Recovery Index (%)") +
+  theme(legend.position = "none") +
+  scale_x_continuous(limits=c(0, 1300), breaks = c(0,200,400,600,800,1000,1200), expand = c(0,0))
+
+
+dHpcRec_A2
+dHpcRec_A1
+dHpcRec_N2B
+
+
+dHpcR_A1<- dHpcData %>% 
+    group_by(SEFL) %>%
+    cor_test(Recovery_Index, dHpcGluA1, method="pearson")
+
+#resilient - r= -0.57, p < 0.0001
+#susceptible = r=0.10, p=0.65
+
+dHpcR_A2<- dHpcData %>% 
+    group_by(SEFL) %>%
+    cor_test(Recovery_Index, dHpcGluA2, method="pearson")
+
+#resilient - r=0.01, p = 0.94
+#susceptible = r=-0.19, p=0.41
+
+dHpcR_N2B<- dHpcData %>% 
+    group_by(SEFL) %>%
+    cor_test(Recovery_Index, dHpcGluN2B, method="pearson")
+
+#resilient - r=-0.6, p < 0.0001
+#susceptible = r=-0.15, p = 0.52
+
+dHpcResilientR_A1 <- FisherZ(-0.57)
+dHpcSusceptibleR_A1 <- FisherZ(0.10)
+
+dHpcResilientR_A2 <- FisherZ(0.01)
+dHpcSusceptibleR_A2 <- FisherZ(-0.19)
+
+dHpcResilientR_N2B <- FisherZ(-0.6)
+dHpcSusceptibleR_N2B <- FisherZ(-0.15)
+
+
+#A1
+
+#n resilient = 51
+#n susceptible = 23
+
+N1 <- 1/(51-3)
+N2 <- 1/(23-3)
+
+N <- N1 + N2
+
+Z1R <- (dHpcResilientR_A1 -dHpcSusceptibleR_A1)
+
+dHpcZdiffR_A1 <- Z1R/sqrt(N)
+dHpcZdiffR_A1
+
+# -2.81 = significant
+
+#A2
+
+N1b <- 1/(52-3)
+
+Nb <- N1b + N2
+
+Z2R <- (dHpcResilientR_A2 -dHpcSusceptibleR_A2)
+
+dHpcZdiffR_A2 <- Z2R/sqrt(Nb)
+dHpcZdiffR_A2
+
+#0.76 = not significant
+
+#N2B
+
+#n resilient = 52
+#n susceptible = 22
+
+
+N2c <- 1/(22-3)
+
+Nc <- N1b + N2c
+
+Z3R <- (dHpcResilientR_N2B -dHpcSusceptibleR_N2B)
+
+dHpcZdiffR_N2B <- Z3R/sqrt(Nc)
+dHpcZdiffR_N2B
+
+#-2.01 = significant
+```
+
+```{r dHpc Behavioural Graph}
+
+dHpccorGraph <- ggarrange(dHpcFF_N2B, dHpcFF_A1, dHpcFF_A2, dHpcE3_N2B, dHpcE3_A1, dHpcE3_A2, dHpcTest_N2B, dHpcTest_A1, dHpcTest_A2, dHpcRec_N2B, dHpcRec_A1, dHpcRec_A2,
+                    labels = c("a", "", "","b", "", "","c", "", "","d", "", ""),
+                    font.label = list(size = 24, face = "bold"),
+                    ncol = 3, nrow = 4) +
+  theme(plot.margin = margin(0.1,1.5,0.1,1.5, "cm")) 
+dHpccorGraph
+
+
+ggsave('dHpccorGraph', dHpccorGraph, width=25, height=36, units='in', device = "tiff", dpi = 300)
+
+```
